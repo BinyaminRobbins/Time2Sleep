@@ -53,7 +53,7 @@ class TimePickerFragment(private val callback: MyCallback, private val myContext
             override fun onReceive(context: Context, intent: Intent) {
                 //  val action = intent.action
                 Toast.makeText(context, "received", Toast.LENGTH_SHORT).show()
-                Log.i(TAG, "onReceive: received")
+             //   Log.i(TAG, "onReceive: received")
                 /* if (action == Intent.ACTION_TIME_CHANGED || action == Intent.ACTION_TIMEZONE_CHANGED) {
                      Toast.makeText(context, "received", Toast.LENGTH_SHORT).show()
                      Log.i(TAG, "onReceive: received")
@@ -96,16 +96,20 @@ class TimePickerFragment(private val callback: MyCallback, private val myContext
         val timeDiff =
             getTimeDifferenceInMinutes(getCurrentTimeInMinutes(), selectedTimeInMinutes)    //Returns the time difference in minutes. for ex:
         Log.i(TAG, "setTimeTxt: timediffinmins = $timeDiff")                            // a time diff of 2 hrs 30 min = 2 * 60 + 30 = 150 mins (INT)
-        var timeDiffInHours: Double = (timeDiff / 60).toDouble()                           // Convert the 150 mins into hours (DOUBLE) = 150 / 60 = 2.5 hrs (DOUBLE)
+        var timeDiffInHours: Double = (timeDiff.toDouble() / 60)                           // Convert the 150 mins into hours (DOUBLE) = 150 / 60 = 2.5 hrs (DOUBLE)
 
-        if (timeDiffInHours.toString().length > 4) {
+        if (timeDiffInHours.toString().length > 3) {
+            Log.i(TAG, "setTimeTxt: L longer than 4")
             timeDiffInHours = String.format("%.2f", timeDiffInHours).toDouble()
         }
         Log.i(TAG, "setTimeTxt: timediff hours = $timeDiffInHours")
 
         val arr: ArrayList<String> = timeDiffInHours.toString().split(".") as ArrayList<String>
         Log.i(TAG, "setTimeTxt: $arr")
-        arr[1] = ((arr[1].toDouble() / 100) * 60).toString()
+        if(arr[1].length < 2){
+            arr[1] = ("${arr[1]}0")
+        }
+        arr[1] = ((arr[1].toDouble() / 100) * 60).toInt().toString()
         Log.i(TAG, "setTimeTxt: revised arr = $arr")
 
         val iterator = arr.listIterator()
@@ -152,6 +156,7 @@ class TimePickerFragment(private val callback: MyCallback, private val myContext
 
     override fun onPause() {
         super.onPause()
+
         myContext.unregisterReceiver(timeChangedReceiver)
     }
 }
