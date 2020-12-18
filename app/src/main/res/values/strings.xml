@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Time2Sleep</string>
+    <string name="timeRemaining">Time Remaining\n(hh/mm)</string>
+</resources>

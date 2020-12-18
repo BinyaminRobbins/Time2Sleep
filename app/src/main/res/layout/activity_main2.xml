@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/main2_bg"
+    tools:context=".MainActivity2">
+
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:elevation="5dp"
+        android:foregroundGravity="center"
+        android:gravity="center"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toBottomOf="@+id/imageView"
+        app:layout_constraintEnd_toEndOf="@+id/imageView"
+        app:layout_constraintStart_toStartOf="@+id/imageView"
+        app:layout_constraintTop_toTopOf="@+id/imageView">
+
+        <TextView
+            android:id="@+id/timeLeftTV"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:fontFamily="@font/markerfelt"
+            android:text="00:40:05"
+            android:textColor="@android:color/white"
+            android:textSize="22sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="5dp"
+            android:layout_weight="1"
+            android:fontFamily="@font/markerfelt"
+            android:gravity="center"
+            android:text="@string/timeRemaining"
+            android:textColor="@android:color/white"
+            android:textSize="14sp" />
+
+    </LinearLayout>
+
+
+    <ImageView
+        android:id="@+id/imageView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/pb_track"
+        android:elevation="3dp"
+        android:foregroundGravity="center"
+        android:scaleType="centerCrop"
+        app:layout_constraintBottom_toTopOf="@id/linearLayout"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.0" />
+
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_margin="15dp"
+        android:elevation="6dp"
+        android:foregroundGravity="center"
+        android:indeterminateOnly="false"
+        android:progressDrawable="@drawable/circle_custom"
+        app:layout_constraintBottom_toBottomOf="@+id/imageView"
+        app:layout_constraintEnd_toEndOf="@+id/imageView"
+        app:layout_constraintStart_toStartOf="@+id/imageView"
+        app:layout_constraintTop_toTopOf="@+id/imageView" />
+
+
+    <LinearLayout
+        android:id="@+id/linearLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="20dp"
+        android:foregroundGravity="center"
+        android:gravity="center"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/progressBar"
+        app:layout_constraintVertical_bias="1.0">
+
+        <TableRow
+            android:id="@+id/tableRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="5dp"
+            android:layout_marginEnd="5dp"
+            android:padding="5dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <Button
+                android:id="@+id/newTimerButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginEnd="5dp"
+                android:layout_weight="1"
+                android:background="@drawable/custom_buttons"
+                android:fontFamily="@font/markerfelt"
+                android:foregroundGravity="center"
+                android:gravity="center"
+                android:text="New Timer"
+                android:textAllCaps="false"
+                android:textSize="18sp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <Button
+                android:id="@+id/resetTimerButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginStart="5dp"
+                android:layout_weight="1"
+                android:background="@drawable/custom_buttons"
+                android:fontFamily="@font/markerfelt"
+                android:foregroundGravity="center"
+                android:gravity="center"
+                android:text="Reset Timer"
+                android:textAllCaps="false"
+                android:textSize="18sp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+        </TableRow>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginTop="20dp"
+            android:fontFamily="@font/markerfelt"
+            android:gravity="center"
+            android:text="When Time Runs Out:"
+            android:textAllCaps="false"
+            android:textColor="@android:color/white"
+            android:textSize="20sp"
+            android:textStyle="italic" />
+
+        <TableLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:dividerPadding="200dp"
+            android:padding="10dp"
+            android:paddingStart="40dp"
+            android:paddingEnd="30dp">
+
+            <TableRow>
+
+                <TextView
+                    android:layout_weight="1"
+                    android:fontFamily="@font/markerfelt"
+                    android:text="Stop Spotify"
+                    android:textSize="18sp"
+                    android:textStyle="italic" />
+
+                <Switch
+                    android:id="@+id/spotifySwitch"
+                    android:outlineProvider="background"
+                    android:trackTint="@color/colorAccent"
+                    tools:ignore="UseSwitchCompatOrMaterialXml" />
+            </TableRow>
+
+            <TableRow android:layout_marginTop="20dp">
+
+                <TextView
+                    android:layout_weight="1"
+                    android:fontFamily="@font/markerfelt"
+                    android:text="Close Youtube"
+                    android:textSize="18dp"
+                    android:textStyle="italic" />
+
+                <Switch
+                    android:id="@+id/youtubeSwitch"
+                    android:outlineProvider="background"
+                    android:trackTint="@color/colorAccent"
+                    tools:ignore="UseSwitchCompatOrMaterialXml" />
+            </TableRow>
+
+            <TableRow android:layout_marginTop="20dp">
+
+                <TextView
+                    android:layout_weight="1"
+                    android:fontFamily="@font/markerfelt"
+                    android:text="Shut Netflix"
+                    android:textSize="18sp"
+                    android:textStyle="italic" />
+
+
+                <Switch
+                    android:id="@+id/netflixSwitch"
+                    android:outlineProvider="background"
+                    android:trackTint="@color/colorAccent"
+                    tools:ignore="UseSwitchCompatOrMaterialXml" />
+            </TableRow>
+
+            <TableRow android:layout_marginTop="20dp">
+
+                <TextView
+                    android:layout_weight="1"
+                    android:fontFamily="@font/markerfelt"
+                    android:text="Airplane Mode"
+                    android:textSize="18sp"
+                    android:textStyle="italic" />
+
+
+                <Switch
+                    android:id="@+id/airplaneModeSwitch"
+                    android:outlineProvider="background"
+                    android:trackTint="@color/colorAccent"
+                    tools:ignore="UseSwitchCompatOrMaterialXml" />
+            </TableRow>
+
+        </TableLayout>
+
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/textView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="15dp"
+        android:layout_marginTop="10dp"
+        android:fontFamily="sans-serif-condensed-medium"
+        android:gravity="center"
+        android:text="More"
+        android:textColor="@android:color/white"
+        android:textSize="14sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.0" />
+
+
+</androidx.constraintlayout.widget.ConstraintLayout>
