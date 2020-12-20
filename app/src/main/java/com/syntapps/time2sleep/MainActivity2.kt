@@ -50,6 +50,7 @@ open class MainActivity2 : AppCompatActivity(), CompoundButton.OnCheckedChangeLi
 
     }
 
+    // TODO: 18/12/2020 save timer to shared prefs and set when app opens
     private fun setCurrentTime() {
         //Called in OnCreate
         val currentTimeText =
@@ -99,5 +100,8 @@ open class MainActivity2 : AppCompatActivity(), CompoundButton.OnCheckedChangeLi
     }
 
     override fun updateProgressBar(progressPercentage: Int) {
+        val anim = ProgressBarAnimation(binding.progressBar,progressBar.progress.toFloat(), progressPercentage.toFloat())
+        anim.duration = 1000
+        binding.progressBar.startAnimation(anim)
     }
 }

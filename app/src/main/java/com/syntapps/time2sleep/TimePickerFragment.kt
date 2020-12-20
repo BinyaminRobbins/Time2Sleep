@@ -12,11 +12,10 @@ import android.util.Log
 import android.widget.TimePicker
 import android.widget.Toast
 import androidx.fragment.app.DialogFragment
+import es.dmoral.toasty.Toasty
 import java.util.*
 import kotlin.collections.ArrayList
 
-
-// TODO: 09/12/2020 CountDownTimer that runs in background when New Timer is set
 class TimePickerFragment(private val callback: MyCallback, private val myContext: Context) :
     DialogFragment(),
     TimePickerDialog.OnTimeSetListener {
@@ -25,39 +24,54 @@ class TimePickerFragment(private val callback: MyCallback, private val myContext
     var hourOfDaySelected: Int = 0
     var minuteOfDaySelected: Int = 0
 
+    private lateinit var toastHour: String
+    private lateinit var toastMinute: String
 
-    private lateinit var timeChangedReceiver: BroadcastReceiver
+    private var hourDiff: Int = 0
+    private var minuteDiff: Int = 0
+
+    private var timeChangedReceiver: BroadcastReceiver? = null
+
+    private var timeSetAtInMins: Int = 0
 
     override fun onTimeSet(view: TimePicker?, hourOfDay: Int, minute: Int) {
         this.hourOfDaySelected = hourOfDay
         this.minuteOfDaySelected = minute
         setTimeTxt()
-      //  displayTimerToast()
-        setReceiver()
-    }
 
-    /*private fun displayTimerToast() {
         Toasty.info(
             myContext,
-            "New Timer Set for:\n$hourTimeDiff hour/s & $minuteTimeDiff minute/s",
+            "New Timer Set for:\n$toastHour hour/s & $toastMinute minute/s",
             Toast.LENGTH_SHORT,
             true
         ).show()
-    }*/
+
+        if (timeChangedReceiver != null) {
+            myContext.unregisterReceiver(timeChangedReceiver)
+        }
+        setReceiver()
+    }
 
     private fun setReceiver() {
         val filter = IntentFilter()
         filter.addAction(Intent.ACTION_TIME_TICK)
         filter.addAction(Intent.ACTION_TIME_CHANGED)
+    val hourSelection = this.hourOfDaySelected
+    val minSelection = this.minuteOfDaySelected
         timeChangedReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
-                //  val action = intent.action
-                Toast.makeText(context, "received", Toast.LENGTH_SHORT).show()
-             //   Log.i(TAG, "onReceive: received")
-                /* if (action == Intent.ACTION_TIME_CHANGED || action == Intent.ACTION_TIMEZONE_CHANGED) {
-                     Toast.makeText(context, "received", Toast.LENGTH_SHORT).show()
-                     Log.i(TAG, "onReceive: received")
-                 }*/
+                Log.i(TAG, "onReceive: recieved")
+                val action = intent.action
+                val selectedTimeInMinutes: Int = (hourSelection * 60) + minSelection
+                if (action == Intent.ACTION_TIME_CHANGED || action == Intent.ACTION_TIME_TICK) {
+                    Log.i(TAG, "onReceive: updating -> $action")
+                    val timePassed = getCurrentTimeInMinutes() - timeSetAtInMins
+                    Log.i(
+                        TAG,
+                        "onReceive: time passed in mins = $timePassed"
+                    )
+                    updateProgressBar()
+                }
             }
         }
         myContext.registerReceiver(timeChangedReceiver, filter)
@@ -90,27 +104,22 @@ class TimePickerFragment(private val callback: MyCallback, private val myContext
 
     private fun setTimeTxt() {
         val selectedTimeInMinutes: Int = (this.hourOfDaySelected * 60) + this.minuteOfDaySelected
-        Log.i(TAG, "setTimeTxt: selected time i mins = $selectedTimeInMinutes")
 
         //convert minutes to hours by dividing by 60
         val timeDiff =
             getTimeDifferenceInMinutes(getCurrentTimeInMinutes(), selectedTimeInMinutes)    //Returns the time difference in minutes. for ex:
-        Log.i(TAG, "setTimeTxt: timediffinmins = $timeDiff")                            // a time diff of 2 hrs 30 min = 2 * 60 + 30 = 150 mins (INT)
+                                                                                            // a time diff of 2 hrs 30 min = 2 * 60 + 30 = 150 mins (INT)
         var timeDiffInHours: Double = (timeDiff.toDouble() / 60)                           // Convert the 150 mins into hours (DOUBLE) = 150 / 60 = 2.5 hrs (DOUBLE)
 
         if (timeDiffInHours.toString().length > 3) {
-            Log.i(TAG, "setTimeTxt: L longer than 4")
             timeDiffInHours = String.format("%.2f", timeDiffInHours).toDouble()
         }
-        Log.i(TAG, "setTimeTxt: timediff hours = $timeDiffInHours")
 
         val arr: ArrayList<String> = timeDiffInHours.toString().split(".") as ArrayList<String>
-        Log.i(TAG, "setTimeTxt: $arr")
         if(arr[1].length < 2){
             arr[1] = ("${arr[1]}0")
         }
         arr[1] = ((arr[1].toDouble() / 100) * 60).toInt().toString()
-        Log.i(TAG, "setTimeTxt: revised arr = $arr")
 
         val iterator = arr.listIterator()
         while (iterator.hasNext()) {
@@ -118,19 +127,26 @@ class TimePickerFragment(private val callback: MyCallback, private val myContext
             if (oldValue.length == 1) iterator.set("0$oldValue")
         }
 
+        toastHour = arr[0]
+        toastMinute = arr[1]
+        hourDiff = arr[0].toInt()
+        minuteDiff = arr[1].toInt()
         callback.updateText("${arr[0]}:${arr[1]}")
 
-        updateProgressBar(30)
+        timeSetAtInMins = getCurrentTimeInMinutes()
+
+        updateProgressBar()
     }
 
-    private fun updateProgressBar(timePassedInMins: Int) {
-       /* val timeDiffInMins = (hourTimeDiff * 60) + minuteTimeDiff
-        val percentage = if (timeDiffInMins == 0) {
-            timeDiffInMins * 100
-        } else {
-            (timePassedInMins * 100) / timeDiffInMins
-        }
-        callback.updateProgressBar(percentage)*/
+    private fun updateProgressBar() {
+        val timeDiff = (hourDiff * 60) + minuteDiff
+//        Log.i(TAG, "updateProgressBar: time diff = $timeDiff")
+//        Log.i(TAG, "updateProgressBar: currentTimeInMins = ${getCurrentTimeInMinutes()}")
+//        Log.i(TAG, "updateProgressBar: timeSetAtInMins = $timeSetAtInMins")
+        val p = (((getCurrentTimeInMinutes() - timeSetAtInMins) * 100) / timeDiff)
+        callback.updateProgressBar(p)
+       // Log.i(TAG, "updateProgressBar: currentMinsSetAt = $currentMinusSetAt%")
+        Log.i(TAG, "updateProgressBar: overTimeDiff = $p%")
     }
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
@@ -147,16 +163,5 @@ class TimePickerFragment(private val callback: MyCallback, private val myContext
             minute,
             DateFormat.is24HourFormat(activity)
         )
-    }
-
-    override fun onResume() {
-        super.onResume()
-        setReceiver()
-    }
-
-    override fun onPause() {
-        super.onPause()
-
-        myContext.unregisterReceiver(timeChangedReceiver)
     }
 }
