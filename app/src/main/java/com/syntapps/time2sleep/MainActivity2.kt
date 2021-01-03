@@ -14,7 +14,7 @@ import kotlinx.android.synthetic.main.activity_main2.*
 
 
 open class MainActivity2 : AppCompatActivity(), CompoundButton.OnCheckedChangeListener,
-    View.OnClickListener, MyCallback {
+    View.OnClickListener {
 
     private lateinit var binding: ActivityMain2Binding
     private val TAG = "MainActivity2_log"
@@ -32,9 +32,8 @@ open class MainActivity2 : AppCompatActivity(), CompoundButton.OnCheckedChangeLi
         setContentView(binding.root)
 
         txtV = binding.timeLeftTV
-        setCurrentTime()
 
-        binding.progressBar.progress = 90
+        binding.progressBar.progress = 100
 
         spotifySwitchObject = SwitchObject(this, "Spotify")
         binding.spotifySwitch.setOnCheckedChangeListener(this)
@@ -51,12 +50,6 @@ open class MainActivity2 : AppCompatActivity(), CompoundButton.OnCheckedChangeLi
     }
 
     // TODO: 18/12/2020 save timer to shared prefs and set when app opens
-    private fun setCurrentTime() {
-        //Called in OnCreate
-        val currentTimeText =
-            { currentTimeMap: Map<String, Int> -> "${currentTimeMap["hour"] as Int} : ${currentTimeMap["minute"] as Int}" }
-        //binding.timeLeftTV.text = currentTimeText(TimePickerFragment.getCurrentTime())
-    }
 
     override fun onCheckedChanged(buttonView: CompoundButton?, isChecked: Boolean) {
         when (buttonView) {
@@ -88,20 +81,9 @@ open class MainActivity2 : AppCompatActivity(), CompoundButton.OnCheckedChangeLi
                 val anim = ProgressBarAnimation(binding.progressBar,progressBar.progress.toFloat(), progressPercentage.toFloat())
                 anim.duration = 1000
                 binding.progressBar.startAnimation(anim)
-
             }
 
         }
         TimePickerFragment(txt,this).show(supportFragmentManager, "timePicker")
-    }
-
-    override fun updateText(string: String) {
-        binding.timeLeftTV.text = string
-    }
-
-    override fun updateProgressBar(progressPercentage: Int) {
-        val anim = ProgressBarAnimation(binding.progressBar,progressBar.progress.toFloat(), progressPercentage.toFloat())
-        anim.duration = 1000
-        binding.progressBar.startAnimation(anim)
     }
 }
