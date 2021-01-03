@@ -13,6 +13,7 @@ import android.widget.TimePicker
 import android.widget.Toast
 import androidx.fragment.app.DialogFragment
 import es.dmoral.toasty.Toasty
+import java.lang.ArithmeticException
 import java.util.*
 import kotlin.collections.ArrayList
 
@@ -21,6 +22,8 @@ class TimePickerFragment(private val callback: MyCallback, private val myContext
     TimePickerDialog.OnTimeSetListener {
 
     private val TAG = "TimePickerFragment_log"
+    private val METHOD_CALL = "METHOD_CALL"
+    private val ARR = "ARRAY"
     var hourOfDaySelected: Int = 0
     var minuteOfDaySelected: Int = 0
 
@@ -35,6 +38,7 @@ class TimePickerFragment(private val callback: MyCallback, private val myContext
     private var timeSetAtInMins: Int = 0
 
     override fun onTimeSet(view: TimePicker?, hourOfDay: Int, minute: Int) {
+        Log.i(METHOD_CALL, "onTimeSet()")
         this.hourOfDaySelected = hourOfDay
         this.minuteOfDaySelected = minute
         setTimeTxt()
@@ -53,24 +57,29 @@ class TimePickerFragment(private val callback: MyCallback, private val myContext
     }
 
     private fun setReceiver() {
+        Log.i(METHOD_CALL, "setReceiver()")
         val filter = IntentFilter()
         filter.addAction(Intent.ACTION_TIME_TICK)
-        filter.addAction(Intent.ACTION_TIME_CHANGED)
-    val hourSelection = this.hourOfDaySelected
-    val minSelection = this.minuteOfDaySelected
         timeChangedReceiver = object : BroadcastReceiver() {
+            // TODO: 21/12/2020 edit time left text on time change
             override fun onReceive(context: Context, intent: Intent) {
-                Log.i(TAG, "onReceive: recieved")
                 val action = intent.action
-                val selectedTimeInMinutes: Int = (hourSelection * 60) + minSelection
-                if (action == Intent.ACTION_TIME_CHANGED || action == Intent.ACTION_TIME_TICK) {
-                    Log.i(TAG, "onReceive: updating -> $action")
-                    val timePassed = getCurrentTimeInMinutes() - timeSetAtInMins
-                    Log.i(
-                        TAG,
-                        "onReceive: time passed in mins = $timePassed"
-                    )
+                if (action == Intent.ACTION_TIME_TICK) {
+                    Log.i(TAG, "onReceive: received")
                     updateProgressBar()
+                    //convert the time diff into minutes ex: 1.5 hrs = 90 mins
+                    val timeDiff: Double = ((hourDiff * 60) + minuteDiff).toDouble()
+                    Log.i(TAG, "onReceive: timeDiff = $timeDiff")
+                    //get the time passed in mins since the timer was set
+                    val timePassedInMins = (getCurrentTimeInMinutes() - timeSetAtInMins)
+                    Log.i(TAG, "onReceive: timepassedinmins = $timePassedInMins")
+                    var num = (timeDiff - timePassedInMins) / 60
+                    if(num.toString().length > 4) {
+                        num = Math.round(num * 100.0) / 100.0
+                    }
+                    Log.i(TAG, "onReceive: NUM = $num")
+                    val fixedTime = fixTime(num)
+                    callback.updateText("${fixedTime[0]}:${fixedTime[1]}")
                 }
             }
         }
@@ -103,50 +112,72 @@ class TimePickerFragment(private val callback: MyCallback, private val myContext
     }
 
     private fun setTimeTxt() {
+        Log.i(METHOD_CALL, "setTimeTxt()")
         val selectedTimeInMinutes: Int = (this.hourOfDaySelected * 60) + this.minuteOfDaySelected
 
         //convert minutes to hours by dividing by 60
         val timeDiff =
-            getTimeDifferenceInMinutes(getCurrentTimeInMinutes(), selectedTimeInMinutes)    //Returns the time difference in minutes. for ex:
-                                                                                            // a time diff of 2 hrs 30 min = 2 * 60 + 30 = 150 mins (INT)
-        var timeDiffInHours: Double = (timeDiff.toDouble() / 60)                           // Convert the 150 mins into hours (DOUBLE) = 150 / 60 = 2.5 hrs (DOUBLE)
+            getTimeDifferenceInMinutes(
+                getCurrentTimeInMinutes(),
+                selectedTimeInMinutes
+            )    //Returns the time difference in minutes. for ex:
+        // a time diff of 2 hrs 30 min = 2 * 60 + 30 = 150 mins (INT)
+        var timeDiffInHours: Double =
+            (timeDiff.toDouble() / 60)                           // Convert the 150 mins into hours (DOUBLE) = 150 / 60 = 2.5 hrs (DOUBLE)
+        Log.i(TAG, "setTimeTxt: timeDiffInHrs = $timeDiffInHours")
 
-        if (timeDiffInHours.toString().length > 3) {
-            timeDiffInHours = String.format("%.2f", timeDiffInHours).toDouble()
+        if (timeDiffInHours.toString().length > 4) {
+//            timeDiffInHours = String.format("%.2f", timeDiffInHours).toDouble()
+            //turns 0.067 into 0.07 (rounds to decimal)
+            timeDiffInHours = Math.round(timeDiffInHours * 100.0) / 100.0
         }
 
-        val arr: ArrayList<String> = timeDiffInHours.toString().split(".") as ArrayList<String>
-        if(arr[1].length < 2){
-            arr[1] = ("${arr[1]}0")
-        }
-        arr[1] = ((arr[1].toDouble() / 100) * 60).toInt().toString()
+        val timeArray = fixTime(timeDiffInHours)
 
-        val iterator = arr.listIterator()
-        while (iterator.hasNext()) {
-            val oldValue = iterator.next()
-            if (oldValue.length == 1) iterator.set("0$oldValue")
-        }
-
-        toastHour = arr[0]
-        toastMinute = arr[1]
-        hourDiff = arr[0].toInt()
-        minuteDiff = arr[1].toInt()
-        callback.updateText("${arr[0]}:${arr[1]}")
+        toastHour = timeArray[0]
+        toastMinute = timeArray[1]
+        hourDiff = timeArray[0].toInt()
+        minuteDiff = timeArray[1].toInt()
+        callback.updateText("${timeArray[0]}:${timeArray[1]}")
 
         timeSetAtInMins = getCurrentTimeInMinutes()
 
         updateProgressBar()
     }
 
+    private fun fixTime(timeDiffInHrs: Double): ArrayList<String> {
+        val arr: ArrayList<String> = timeDiffInHrs.toString().split(".") as ArrayList<String>
+        //trim the string to the first 2 chars ie 1333333 becomes 13
+        arr[1] = arr[1].take(2)
+
+        Log.i(ARR, "fixTime__1: $arr")
+        if (arr[1].length < 2) {
+            //if minutes is single dig i.e 8 minutes the change it to double dig i.e 09 minutes
+            arr[1] = ("0${arr[1]}")
+        }
+        arr[1] = (Math.round((((arr[1].toDouble() / 100) * 60) * 100.0) / 100.0)).toString()
+        Log.i(ARR, "fixTime__2: ${arr[1]}")
+
+        val iterator = arr.listIterator()
+        while (iterator.hasNext()) {
+            val oldValue = iterator.next()
+            if (oldValue.length == 1) iterator.set("0$oldValue")
+        }
+        Log.i(ARR, "fixTime__3: arr = $arr")
+        return arr
+    }
+
     private fun updateProgressBar() {
-        val timeDiff = (hourDiff * 60) + minuteDiff
-//        Log.i(TAG, "updateProgressBar: time diff = $timeDiff")
-//        Log.i(TAG, "updateProgressBar: currentTimeInMins = ${getCurrentTimeInMinutes()}")
-//        Log.i(TAG, "updateProgressBar: timeSetAtInMins = $timeSetAtInMins")
-        val p = (((getCurrentTimeInMinutes() - timeSetAtInMins) * 100) / timeDiff)
-        callback.updateProgressBar(p)
-       // Log.i(TAG, "updateProgressBar: currentMinsSetAt = $currentMinusSetAt%")
-        Log.i(TAG, "updateProgressBar: overTimeDiff = $p%")
+        Log.i(METHOD_CALL, "updateProgressBar()")
+        try {
+            val timeDiff = (hourDiff * 60) + minuteDiff
+            val p = (((getCurrentTimeInMinutes() - timeSetAtInMins) * 100) / timeDiff)
+            Log.i(TAG, "updateProgressBar: overTimeDiff = $p%")
+            callback.updateProgressBar(p)
+        } catch (e: ArithmeticException) {
+            callback.updateProgressBar(0)
+            e.printStackTrace()
+        }
     }
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
