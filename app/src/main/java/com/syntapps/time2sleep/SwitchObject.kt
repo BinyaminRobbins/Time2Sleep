@@ -3,9 +3,9 @@ package com.syntapps.time2sleep
 import android.content.Context
 import android.widget.Toast
 import es.dmoral.toasty.Toasty
+import java.io.Serializable
 
-class SwitchObject(private var context: Context, private var title: String) {
-
+class SwitchObject(private var context: Context, private var title: String?) : Serializable {
 
     fun switchClicked(isChecked: Boolean) {
         if (isChecked) {
@@ -23,6 +23,6 @@ class SwitchObject(private var context: Context, private var title: String) {
                 true
             ).show()
         }
-
     }
 }
+

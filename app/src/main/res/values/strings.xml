@@ -1,4 +1,7 @@
 <resources>
     <string name="app_name">Time2Sleep</string>
     <string name="timeRemaining">Time Remaining\n(hh/mm)</string>
+    <string name="startTime">00:00</string>
+    <string name="sharedPrefsName">myPrefs</string>
+    <string name="serviceUpdateTAG">MyService Update</string>
 </resources>
