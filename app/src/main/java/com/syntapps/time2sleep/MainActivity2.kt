@@ -16,6 +16,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.DialogFragment
 import com.syntapps.time2sleep.databinding.ActivityMain2Binding
 import es.dmoral.toasty.Toasty
+import java.lang.NullPointerException
 import java.util.*
 import kotlin.collections.ArrayList
 
@@ -93,16 +94,17 @@ class MainActivity2 : AppCompatActivity(), CompoundButton.OnCheckedChangeListene
     override fun onRestart() {
         Log.i(getString(R.string.serviceUpdateTAG), "onRestart: Restarting Main2...")
         stopService(serviceIntent)
+        sharedPrefs = getSharedPreferences(getString(R.string.sharedPrefsName), 0)
         val newText: String
         sharedPrefs.also {
             newText = "${it.getString(
                 "fixedTime0",
-                "err0"
+                "00"
             )} " +
                     ":" +
                     " ${it.getString(
                         "fixedTime1",
-                        "err1"
+                        "00"
                     )}"
         }
         txt.updateText(newText)
@@ -116,6 +118,8 @@ class MainActivity2 : AppCompatActivity(), CompoundButton.OnCheckedChangeListene
         super.onCreate(savedInstanceState)
         binding = ActivityMain2Binding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        Log.i(TAG, "onCreate: Creating...")
 
         txtV = binding.timeLeftTV
 
@@ -134,6 +138,7 @@ class MainActivity2 : AppCompatActivity(), CompoundButton.OnCheckedChangeListene
         binding.resetTimerButton.setOnClickListener(this)
 
         sharedPrefs = getSharedPreferences(getString(R.string.sharedPrefsName), 0)
+
         txt = object : MyCallback {
 
             override fun updateText(string: String) {
@@ -151,6 +156,28 @@ class MainActivity2 : AppCompatActivity(), CompoundButton.OnCheckedChangeListene
                 binding.progressBar.startAnimation(anim)
             }
         }
+
+        try{
+            stopService(serviceIntent)
+        }catch(e: UninitializedPropertyAccessException){
+            e.printStackTrace()
+        }
+        val newText: String
+        sharedPrefs.also {
+            newText = "${it.getString(
+                "fixedTime0",
+                "00"
+            )} " +
+                    ":" +
+                    " ${it.getString(
+                        "fixedTime1",
+                        "00"
+                    )}"
+        }
+        txt.updateText(newText)
+        // --> Get the values saved in SharedPrefs from the MyService() class and re-register
+        //      the BroadcastReceiver / Stop the service from running.
+        updateProgress()
     }
 
     private fun setTimeReceiver() {
@@ -178,6 +205,8 @@ class MainActivity2 : AppCompatActivity(), CompoundButton.OnCheckedChangeListene
                     }
                     val fixedTime = fixTime(num)
                     txt.updateText("${fixedTime[0]}:${fixedTime[1]}")
+                    sharedPrefs.edit().putString("fixedTime0", fixedTime?.get(0)).apply()
+                    sharedPrefs.edit().putString("fixedTime1", fixedTime?.get(1)).apply()
                 }
             }
         }
@@ -268,6 +297,10 @@ class MainActivity2 : AppCompatActivity(), CompoundButton.OnCheckedChangeListene
 
         hourDiff = timeArray[0].toInt()
         minDiff = timeArray[1].toInt()
+
+        sharedPrefs.edit().putString("fixedTime0", timeArray?.get(0)).apply()
+        sharedPrefs.edit().putString("fixedTime1", timeArray?.get(1)).apply()
+
         txt.updateText("${timeArray[0]}:${timeArray[1]}")
 
         timeSetAtInMins = CurrentTime().currentTimeInMinutes
