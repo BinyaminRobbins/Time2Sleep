@@ -1,24 +1,18 @@
 package com.syntapps.time2sleep
 
 import ProgressBarAnimation
-import android.app.Dialog
-import android.app.TimePickerDialog
+import android.app.NotificationManager
 import android.content.*
 import android.os.Bundle
-import android.os.Parcel
-import android.os.Parcelable
-import android.os.Parcelable.Creator
-import android.text.format.DateFormat
 import android.util.Log
 import android.view.View
-import android.widget.*
+import android.widget.CompoundButton
+import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.fragment.app.DialogFragment
 import com.syntapps.time2sleep.databinding.ActivityMain2Binding
 import es.dmoral.toasty.Toasty
-import java.lang.NullPointerException
-import java.util.*
-import kotlin.collections.ArrayList
+import kotlin.math.roundToInt
 
 
 class MainActivity2 : AppCompatActivity(), CompoundButton.OnCheckedChangeListener,
@@ -35,11 +29,12 @@ class MainActivity2 : AppCompatActivity(), CompoundButton.OnCheckedChangeListene
 
     private lateinit var txtV: TextView
     private lateinit var txt: MyCallback
-    private var timeChangedReceiver: BroadcastReceiver? = null
+    private var broadcastReceiver: BroadcastReceiver? = null
 
     private var hourDiff: Int = 0 //time difference between selected hour and current hour
     private var minDiff: Int = 0  //time difference between selected minute and current minute
     private var timeSetAtInMins: Int = 0
+    private var isReceiverRegistered: Boolean = false
 
     private lateinit var sharedPrefs: SharedPreferences
 
@@ -57,25 +52,33 @@ class MainActivity2 : AppCompatActivity(), CompoundButton.OnCheckedChangeListene
         when (v) {
             binding.newTimerButton -> {
                 TimePicker(this).show(supportFragmentManager, "timePicker")
-                val filter = IntentFilter("com.syntapps.time2sleep.TimePicker")
-                val receiver = object : BroadcastReceiver() {
-                    override fun onReceive(context: Context?, intent: Intent?) {
-                        val action = intent?.action
-                        if (action.equals("com.syntapps.time2sleep.TimePicker")) {
-                            val hourOfDaySelected = intent?.getIntExtra("hourOfDaySelected", 0)
-                            val minuteOfDaySelected = intent?.getIntExtra("minOfDaySelected", 0)
-                            setTimeTxt(hourOfDaySelected!!, minuteOfDaySelected!!)
 
-                            updateProgress()
-                            setTimeReceiver()
-                        }
-                    }
+                if (isReceiverRegistered) {
+                    unRegisterBReceiver(broadcastReceiver)
                 }
-                registerReceiver(receiver, filter)
+                val filter = IntentFilter()
+                filter.addAction("OnTimeSet()")
+                filter.addAction(Intent.ACTION_TIME_TICK)
+                broadcastReceiver = MyReceiver()
+                registerBReceiver(broadcastReceiver, filter)
+
             }
-            binding.resetTimerButton -> Toasty.info(this, "Reset Timer", Toast.LENGTH_SHORT, true)
-                .show()
+            binding.resetTimerButton -> {
+                Toasty.info(this, "Reset Timer", Toast.LENGTH_SHORT, true)
+                    .show()
+            }
+            // TODO: 18/01/2021 Reset Timer
         }
+    }
+
+    private fun registerBReceiver(br: BroadcastReceiver?, f: IntentFilter) {
+        registerReceiver(br, f)
+        isReceiverRegistered = true
+    }
+
+    private fun unRegisterBReceiver( br: BroadcastReceiver?) {
+        unregisterReceiver(br)
+        isReceiverRegistered = false
     }
 
     override fun onPause() {
@@ -84,7 +87,9 @@ class MainActivity2 : AppCompatActivity(), CompoundButton.OnCheckedChangeListene
             it.putInt("minDiff", minDiff)
             it.putInt("timeSetAtInMinutes", timeSetAtInMins)
         }.apply()
-        Log.i(getString(R.string.serviceUpdateTAG), "onPause: Pausing...")
+        Log.i(TAG, "onPause: 85: Pausing...")
+        Log.i(TAG, "onPause: 86: hourDiff = $hourDiff")
+        Log.i(TAG, "onPause: 87: minDiff = $minDiff")
         // --> Get the required values from SharedPrefs and set service class to update
         //      the values on "ACTION_TIME_TICK" (Broadcast Receiver)
         setService()
@@ -92,25 +97,24 @@ class MainActivity2 : AppCompatActivity(), CompoundButton.OnCheckedChangeListene
     }
 
     override fun onRestart() {
-        Log.i(getString(R.string.serviceUpdateTAG), "onRestart: Restarting Main2...")
+        Log.i(TAG, "onRestart: Restarting Main2...")
         stopService(serviceIntent)
         sharedPrefs = getSharedPreferences(getString(R.string.sharedPrefsName), 0)
         val newText: String
         sharedPrefs.also {
-            newText = "${it.getString(
-                "fixedTime0",
-                "00"
-            )} " +
-                    ":" +
-                    " ${it.getString(
-                        "fixedTime1",
-                        "00"
-                    )}"
+            newText = "${it.getString("timeRemaining_HR", "00")} " +
+                    " : " +
+                    "${it.getString("timeRemaining_MINS", "00")}"
+
+            Log.i(TAG, "onRestart: 104: SHP_HR : \n${it.getString("timeRemaining_HR", "ERR")}")
+            Log.i(TAG, "onRestart: 105: SHP_MINS : \n${it.getString("timeRemaining_MINS", "ERR")}")
         }
+
         txt.updateText(newText)
         // --> Get the values saved in SharedPrefs from the MyService() class and re-register
         //      the BroadcastReceiver / Stop the service from running.
         updateProgress()
+        cancelNotifs()
         super.onRestart()
     }
 
@@ -123,7 +127,7 @@ class MainActivity2 : AppCompatActivity(), CompoundButton.OnCheckedChangeListene
 
         txtV = binding.timeLeftTV
 
-        binding.progressBar.progress = 100
+        //binding.progressBar.progress = 100
 
         spotifySwitchObject = SwitchObject(this, "Spotify")
         binding.spotifySwitch.setOnCheckedChangeListener(this)
@@ -157,65 +161,29 @@ class MainActivity2 : AppCompatActivity(), CompoundButton.OnCheckedChangeListene
             }
         }
 
-        try{
+        try {
+            //when the app restarts stop the service
             stopService(serviceIntent)
-        }catch(e: UninitializedPropertyAccessException){
+        } catch (e: UninitializedPropertyAccessException) {
             e.printStackTrace()
         }
-        val newText: String
-        sharedPrefs.also {
-            newText = "${it.getString(
-                "fixedTime0",
-                "00"
-            )} " +
-                    ":" +
-                    " ${it.getString(
-                        "fixedTime1",
-                        "00"
-                    )}"
-        }
-        txt.updateText(newText)
+
+        // val newText: String = "${sharedPrefs.getString("")}:"
+
+        // txt.updateText(newText)
         // --> Get the values saved in SharedPrefs from the MyService() class and re-register
         //      the BroadcastReceiver / Stop the service from running.
-        updateProgress()
+        txt.updateProgressBar(0)
+
+        //cancel all current notifications in notifications bar
+        cancelNotifs()
     }
 
-    private fun setTimeReceiver() {
-        Toasty.info(
-            this,
-            "New Timer Set for:\n${hourDiff} hour/s & $minDiff minute/s",
-            Toast.LENGTH_SHORT,
-            true
-        ).show()
-        val filter = IntentFilter()
-        filter.addAction(Intent.ACTION_TIME_TICK)
-        timeChangedReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                val action = intent.action
-                if (action == Intent.ACTION_TIME_TICK) {
-                    updateProgress()
-                    //convert the time diff into minutes ex: 1.5 hrs = 90 mins
-                    val timeDiff: Double = ((hourDiff * 60) + minDiff).toDouble()
-                    //get the time passed in mins since the timer was set
-                    val timePassedInMins =
-                        (CurrentTime().currentTimeInMinutes - timeSetAtInMins)
-                    var num = (timeDiff - timePassedInMins) / 60
-                    if (num.toString().length > 4) {
-                        num = Math.round(num * 100.0) / 100.0
-                    }
-                    val fixedTime = fixTime(num)
-                    txt.updateText("${fixedTime[0]}:${fixedTime[1]}")
-                    sharedPrefs.edit().putString("fixedTime0", fixedTime?.get(0)).apply()
-                    sharedPrefs.edit().putString("fixedTime1", fixedTime?.get(1)).apply()
-                }
-            }
-        }
-        try {
-            unregisterReceiver(timeChangedReceiver)
-        } catch (e: Exception) {
-            Log.d(TAG, "Unregister Receiver Error: \n${e.printStackTrace()}")
-        }
-        registerReceiver(timeChangedReceiver, filter)
+    private fun cancelNotifs() {
+        //cancel all notifications in the app notification menu (called primarily on app opened (OnCreate))
+        val notificationManager: NotificationManager =
+            getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.cancelAll()
     }
 
     private fun getTimeDifferenceInMinutes(
@@ -231,7 +199,7 @@ class MainActivity2 : AppCompatActivity(), CompoundButton.OnCheckedChangeListene
     }
 
     companion object {
-        fun fixTime(timeDiffInHrs: Double): ArrayList<String> {
+        fun timeFixToArray(timeDiffInHrs: Double): ArrayList<String> {
             val arr: ArrayList<String> =
                 timeDiffInHrs.toString().split(".") as ArrayList<String>
             //trim the string to the first 2 chars ie 1333333 becomes 13
@@ -239,10 +207,10 @@ class MainActivity2 : AppCompatActivity(), CompoundButton.OnCheckedChangeListene
 
             if (arr[1].length < 2) {
                 //if minutes is single dig i.e 8 minutes the change it to double dig i.e 09 minutes
-                arr[1] = ("0${arr[1]}")
+                arr[1] = ("${arr[1]}0")
             }
             arr[1] =
-                (Math.round((((arr[1].toDouble() / 100) * 60) * 100.0) / 100.0)).toString()
+                ((((arr[1].toDouble() / 100) * 60) * 100.0) / 100.0).roundToInt().toString()
 
             val iterator = arr.listIterator()
             while (iterator.hasNext()) {
@@ -253,57 +221,143 @@ class MainActivity2 : AppCompatActivity(), CompoundButton.OnCheckedChangeListene
         }
     }
 
-    private fun updateProgress() {
-        var p = 0
+    private fun updateProgress(funcName: String = "") {
+        Log.i(TAG, "updateProgress: 220: funcName? = $funcName")
+        var percentage = 0
+        val timeDiffInMins = (hourDiff * 60) + minDiff
         try {
-            val timeDiff = (hourDiff * 60) + minDiff
-            p = ((CurrentTime().currentTimeInMinutes - timeSetAtInMins) * 100) / timeDiff
-            txt.updateProgressBar(p)
+            percentage =
+                ((CurrentTime().currentTimeInMinutes - timeSetAtInMins) * 100) / timeDiffInMins
         } catch (e: ArithmeticException) {
-            txt.updateProgressBar(0)
+            Log.d(TAG, "updateProgress: 227: Error calculating progress perc. (this is from catch)")
             e.printStackTrace()
         }
-        if (p == 100 && timeChangedReceiver != null) {
-            unregisterReceiver(timeChangedReceiver)
+
+        if (percentage != 100) {
+            txt.updateProgressBar(percentage)
+        } else {
+            txt.updateProgressBar(100)
+            if (isReceiverRegistered) {
+                unRegisterBReceiver(broadcastReceiver)
+            }
         }
+        Log.i(TAG, "updateProgress: \np = $percentage")
     }
 
+    override fun onDestroy() {
+        Log.i(TAG, "onDestroy: Destroying Application...()")
+        super.onDestroy()
+    }
+
+
     private fun setService() {
-        serviceIntent = Intent(this, MyService::class.java).also {
-            startService(it)
-        }
+        Thread {
+            serviceIntent = Intent(this, MyService::class.java).also {
+                startService(it)
+            }
+        }.start()
     }
 
     private fun setTimeTxt(hourOfDaySelected: Int, minuteOfDaySelected: Int) {
         val selectedTimeInMinutes: Int = (hourOfDaySelected * 60) + minuteOfDaySelected
 
         //convert minutes to hours by dividing by 60
-        val timeDiff =
+        val timeDiffInMinutes =
             getTimeDifferenceInMinutes(
                 CurrentTime().currentTimeInMinutes,
                 selectedTimeInMinutes
-            )    //Returns the time difference in minutes. for ex:
+            )  //Returns the time difference in minutes. for ex:
         // a time diff of 2 hrs 30 min = 2 * 60 + 30 = 150 mins (INT)
         var timeDiffInHours: Double =
-            (timeDiff.toDouble() / 60)                           // Convert the 150 mins into hours (DOUBLE) = 150 / 60 = 2.5 hrs (DOUBLE)
+            (timeDiffInMinutes.toDouble() / 60)                         // Convert the 150 mins into hours (DOUBLE) = 150 / 60 = 2.5 hrs (DOUBLE)
 
-        if (timeDiffInHours.toString().length > 4) {
+        if (timeDiffInHours.toString().length > 4 || timeDiffInHours.toString().length == 3) {
 //            timeDiffInHours = String.format("%.2f", timeDiffInHours).toDouble()
             //turns 0.067 into 0.07 (rounds to decimal)
-            timeDiffInHours = Math.round(timeDiffInHours * 100.0) / 100.0
+            timeDiffInHours = (timeDiffInHours * 100.0).roundToInt() / 100.0
+
         }
 
-        val timeArray = fixTime(timeDiffInHours)
+        val timeArray = timeFixToArray(timeDiffInHours)
+        //time array will return an array of the current time [0] = hours [1] = minutes
+        //ex: 01:20 => [0] = 1 , [1] = 20
 
         hourDiff = timeArray[0].toInt()
         minDiff = timeArray[1].toInt()
 
-        sharedPrefs.edit().putString("fixedTime0", timeArray?.get(0)).apply()
-        sharedPrefs.edit().putString("fixedTime1", timeArray?.get(1)).apply()
+        //sharedPrefs.edit().putInt("fixedTime0", timeArray[0].toInt()).apply()
+        //sharedPrefs.edit().putInt("fixedTime1", timeArray[1].toInt()).apply()
 
-        txt.updateText("${timeArray[0]}:${timeArray[1]}")
+        Log.i(TAG, "setTimeTxt: 279: fixedTime0 = ${timeArray[0]}")
+        Log.i(TAG, "setTimeTxt: 280: fixedTime1 = ${timeArray[1]}")
 
-        timeSetAtInMins = CurrentTime().currentTimeInMinutes
+        txt.updateText("${timeArray[0]} : ${timeArray[1]}")
+
+        Thread {
+            timeSetAtInMins = CurrentTime().currentTimeInMinutes
+        }.start()
+
     }
 
+    inner class MyReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+
+            when (intent?.action) {
+
+                "OnTimeSet()" -> {
+                    intent.also {
+                        setTimeTxt(
+                            it.getIntExtra(
+                                "hourOfDaySelected",
+                                9
+                            ),
+                            it.getIntExtra(
+                                "minOfDaySelected",
+                                9
+                            )
+                        )
+                    }
+                    txt.updateProgressBar(0)
+                    //updateProgress("OnReceive -> OnTimeSet()")
+
+                    if (context != null) {
+                        Toasty.info(
+                            context,
+                            "New Timer Set for:\n${hourDiff} hour/s & $minDiff minute/s",
+                            Toast.LENGTH_SHORT,
+                            true
+                        ).show()
+                    }
+                }
+
+                Intent.ACTION_TIME_TICK -> {
+                    updateProgress("OnReceive -> TIME_TICK")
+                    //convert the time diff into minutes ex: 1.5 hrs = 90 mins
+                    val timeDiff: Int = ((hourDiff * 60) + minDiff)                     //90
+                    //get the time passed in mins since the timer was set
+                    val timePassedInMins =
+                        (CurrentTime().currentTimeInMinutes - timeSetAtInMins)          //20
+                    //get the time remaining for the the timer
+                    var timeRemainingInHours: Double =
+                        ((timeDiff - timePassedInMins).toDouble() / 60) //1.16666667
+                    if (timeRemainingInHours.toString().length > 5) {
+                        timeRemainingInHours =
+                            (timeRemainingInHours * 100.0).roundToInt() / 100.0    //1.11666 -> 116 -> 1.16 ;)
+                    }
+                    //timeFixToArray() makes the single digit minutes in to multi digits -> ex: 1 min becomes 01
+                    // the timeFixToArray() function then returns an array with [0] being the 2 dig hour remaining
+                    // & [1] being the 2 dig minutes remaining
+                    val fixedTime = timeFixToArray(timeRemainingInHours)
+
+                    txt.updateText("${fixedTime[0]} : ${fixedTime[1]}")
+
+                    /*sharedPrefs.edit {
+                        this.putString("fixedTime0", fixedTime[0]).apply()
+                        this.putString("fixedTime1", fixedTime[1]).apply()
+                    }*/
+                }
+            }
+        }
+
+    }
 }
