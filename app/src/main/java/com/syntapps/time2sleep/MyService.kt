@@ -1,66 +1,76 @@
 package com.syntapps.time2sleep
 
-import android.app.Service
+import android.app.*
 import android.content.*
+import android.os.Build
 import android.os.IBinder
 import android.util.Log
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import kotlin.math.roundToInt
+
 
 class MyService : Service() {
 
-    private val TAG = "MyService_log"
-    var timeChangedReceiver: BroadcastReceiver? = null
-    private var fixedTime: ArrayList<String>? = null
-    private lateinit var sharedPreferences: SharedPreferences
+    private val TAG = "MyService"
+    private var timeChangedReceiver: BroadcastReceiver? = null
+    private lateinit var sharedPrefs: SharedPreferences
+
+    private var TIME_SET_DIFFERENCE: Int = 0
+    private var TIME_SET_AT_IN_MINS: Int = 0
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
-        Log.d(getString(R.string.serviceUpdateTAG), "onDestroy: Service Destroyed")
-        sharedPreferences = getSharedPreferences(getString(R.string.sharedPrefsName), 0)
-        process()
-        sharedPreferences.edit().putString("fixedTime0", fixedTime?.get(0)).apply()
-        sharedPreferences.edit().putString("fixedTime1", fixedTime?.get(1)).apply()
-        unregisterReceiver(timeChangedReceiver)
-        stopSelf()
+        Log.i(TAG, "onDestroy: 31: Destroying Service...")
+        if (sharedPrefs.getBoolean("isReceiverRegistered", true)) {
+            unRegisterBRReceiver(timeChangedReceiver)
+        }
         super.onDestroy()
     }
 
-    private fun process() {
-        Log.d(getString(R.string.serviceUpdateTAG), "process() Running")
-        //updateProgress()
-        //convert the time diff into minutes ex: 1.5 hrs = 90 mins
-        val timeDiff: Double = ((sharedPreferences.getInt(
-            "hourDiff",
-            0
-        ) * 60) + sharedPreferences.getInt("minDiff", 0)).toDouble()
-        //get the time passed in mins since the timer was set
-        val timePassedInMins =
-            (CurrentTime().currentTimeInMinutes - sharedPreferences.getInt(
-                "timeSetAtInMinutes",
-                0
-            ))
-        var num = (timeDiff - timePassedInMins) / 60
-        if (num.toString().length > 4) {
-            num = Math.round(num * 100.0) / 100.0
-        }
-        fixedTime = MainActivity2.fixTime(num)
+    private fun registerBRReceiver(br: BroadcastReceiver?, intentFilter: IntentFilter) {
+        registerReceiver(br, intentFilter)
+        sharedPrefs.edit().putBoolean("isReceiverRegistered", true).apply()
+    }
+
+    private fun unRegisterBRReceiver(br: BroadcastReceiver?) {
+        unregisterReceiver(br)
+        sharedPrefs.edit().putBoolean("isReceiverRegistered", false).apply()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.d(getString(R.string.serviceUpdateTAG), "Service is running... ")
-        sharedPreferences = getSharedPreferences(getString(R.string.sharedPrefsName), 0)
-        process()
-        val filter = IntentFilter()
-        filter.addAction(Intent.ACTION_TIME_TICK)
-        timeChangedReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                val action = intent.action
-                if (action == Intent.ACTION_TIME_TICK) {
-                    process()
-                }
-            }
-        }
-        registerReceiver(timeChangedReceiver, filter)
+        Log.i(TAG, "onStartCommand:()")
+
+        TIME_SET_AT_IN_MINS = intent?.getIntExtra("TIME_SET_AT_IN_MINS", 2319)!!
+        val hourDiff = intent.getIntExtra("HOUR_DIFF", 2319)
+        Log.i(TAG, "onStartCommand: 97: hourDiff intentExtra = $hourDiff")
+        val minsDiff = intent.getIntExtra("MINS_DIFF", 2319)
+        Log.i(TAG, "onStartCommand: 99: minDiff intentExtra = $minsDiff")
+
+        sharedPrefs = getSharedPreferences(getString(R.string.sharedPrefsName), 0)
+        sharedPrefs.edit().also {
+            it.putInt("TIME_SET_AT_IN_MINS", TIME_SET_AT_IN_MINS)
+            it.putInt("HOUR_DIFF", hourDiff)
+            it.putInt("MINS_DIFF", minsDiff)
+        }.apply()
+
+        TIME_SET_DIFFERENCE = hourDiff * 60 + minsDiff - TIME_SET_AT_IN_MINS
+
+        Log.i(TAG, "onStartCommand: 114: TIME_SET_AT_IN_MINS = $TIME_SET_AT_IN_MINS")
+        val filter = IntentFilter(Intent.ACTION_TIME_TICK)
+
+        timeChangedReceiver =
+            TimeTickerReceiver(this, TIME_SET_DIFFERENCE, TIME_SET_AT_IN_MINS)
+
+       // if (sharedPrefs.getBoolean("isReceiverRegistered", false) == false) {
+            registerBRReceiver(timeChangedReceiver, filter)
+        //}
+
+       // updateTimer()
+
+        sharedPrefs.edit().putInt("TIME_SET_AT_IN_MINS", TIME_SET_AT_IN_MINS).apply()
+
         return START_STICKY
     }
 }
