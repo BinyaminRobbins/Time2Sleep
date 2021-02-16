@@ -1,8 +1,11 @@
 package com.syntapps.time2sleep
 
 import ProgressBarAnimation
+import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.*
+import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -35,6 +38,8 @@ class MainActivity2 : AppCompatActivity(), CompoundButton.OnCheckedChangeListene
     private var minDiff: Int = 0  //time difference between selected minute and current minute
     private var timeSetAtInMins: Int = 0
     private var isReceiverRegistered: Boolean = false
+
+    private var notificationManager: NotificationManager? = null
 
     private lateinit var sharedPrefs: SharedPreferences
 
@@ -137,6 +142,10 @@ class MainActivity2 : AppCompatActivity(), CompoundButton.OnCheckedChangeListene
                 // probably 3 dot chaging icons
             }
             updateProgress()
+        }else{
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                notificationManager?.deleteNotificationChannel("com.syntapps.time2sleep")
+            }
         }
         // --> Get the values saved in SharedPrefs from the MyService() class and re-register
         //      the BroadcastReceiver / Stop the service from running.
@@ -291,7 +300,23 @@ class MainActivity2 : AppCompatActivity(), CompoundButton.OnCheckedChangeListene
         // Thread {
         timeSetAtInMins = CurrentTime().currentTimeInMinutes
         //  }.start()
+    }
 
+    private fun createNotificationChannel(id: String, name: String, description: String) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val importance = NotificationManager.IMPORTANCE_DEFAULT
+            val channel = NotificationChannel(id, name, importance).also {
+                it.description = description
+                it.enableLights(true)
+                it.lightColor = Color.RED
+                it.enableVibration(true)
+                it.vibrationPattern =
+                    longArrayOf(100, 200, 300, 400, 500, 400, 300, 200, 400)
+            }
+            notificationManager?.createNotificationChannel(channel)
+        } else {
+            Log.i(TAG, "createNotificationChannel: 104: 104")
+        }
     }
 
     inner class MyReceiver : BroadcastReceiver() {
@@ -323,6 +348,17 @@ class MainActivity2 : AppCompatActivity(), CompoundButton.OnCheckedChangeListene
                             true
                         ).show()
                     }
+
+                    notificationManager =
+                        getSystemService(
+                            Context.NOTIFICATION_SERVICE
+                        ) as NotificationManager
+
+                    createNotificationChannel(
+                        "com.syntapps.time2sleep",
+                        "Time2Sleep App",
+                        "Your timer is up!"
+                    )
                 }
 
                 Intent.ACTION_TIME_TICK -> {
