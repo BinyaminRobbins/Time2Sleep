@@ -3,5 +3,8 @@
     <string name="timeRemaining">Time Remaining\n(hh/mm)</string>
     <string name="startTime">00:00</string>
     <string name="sharedPrefsName">myPrefs</string>
-    <string name="serviceUpdateTAG">MyServiceTAG</string>
+    <string name="msg_token_fmt">YourTimerisDone!</string>
+    <string name="notificationTitle">TIME2SLEEP by SyntApps</string>
+    <string name="notificationMessage">Timer is Done!</string>
+    <string name="timePassedInMins">timePassedInMins</string>
 </resources>

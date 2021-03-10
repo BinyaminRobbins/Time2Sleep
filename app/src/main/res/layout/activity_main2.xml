@@ -49,7 +49,7 @@
         android:id="@+id/imageView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="30dp"
         android:background="@drawable/pb_track"
         android:elevation="3dp"
         android:foregroundGravity="center"
