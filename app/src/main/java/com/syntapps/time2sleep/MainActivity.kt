@@ -1,23 +1,20 @@
 package com.syntapps.time2sleep
 
-import android.content.Intent
 import android.os.Bundle
-import android.os.Handler
+import android.widget.FrameLayout
 import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        setContentView(R.layout.activity_main)
         super.onCreate(savedInstanceState)
-        //setContentView(R.layout.activity_main)
 
-        // window.setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,WindowManager.LayoutParams.FLAG_FULLSCREEN)
+        //transition the first fragment (Splash Screen) into the frame layout of Main Activity XML File
 
-        // supportActionBar?.hide()
-        Handler().postDelayed({
-            val intent = Intent(applicationContext, MainActivity2::class.java)
-            startActivity(intent)
-            finish()
-        }, 300)
+        val firstFragment = SplashScreenFragment(this)
+        firstFragment.arguments = intent.extras
+
+        supportFragmentManager.beginTransaction().add(R.id.frameLayout, firstFragment).commit()
     }
 }

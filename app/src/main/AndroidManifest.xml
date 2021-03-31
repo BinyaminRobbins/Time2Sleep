@@ -20,8 +20,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".MainActivity2" />
-
         <!-- <receiver android:name=".MainActivity2$MyReceiver" >
              <intent-filter>
                  <action android:name="android.intent.action.TIME_TICK"/>

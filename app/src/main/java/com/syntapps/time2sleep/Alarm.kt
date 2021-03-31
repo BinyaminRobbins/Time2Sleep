@@ -5,14 +5,11 @@ import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.os.Build
-import android.os.PowerManager
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import java.lang.Exception
 
 class Alarm : BroadcastReceiver() {
 
@@ -21,7 +18,7 @@ class Alarm : BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
         if (intent?.action.equals("T2S_ALARM")) {
             Log.i(TAG, "onReceive: 127: Alarm Received")
-            val i = Intent(context!!, MainActivity2::class.java).also {
+            val i = Intent(context!!, HomeFragment::class.java).also {
                 it.putExtra("timeToDisplay", "00 : 00")
                 it.putExtra("progressToDisplay", 100)
                 it.action = "Update UI"
@@ -62,7 +59,7 @@ class Alarm : BroadcastReceiver() {
 
     private fun sendNotification(myContext: Context) {
         val builder = NotificationCompat.Builder(myContext, "T2S_ID")
-            .setSmallIcon(R.mipmap.ic_launcher_xd_round)
+            .setSmallIcon(R.mipmap.ic_launcher_xd)
             .setContentTitle("Time2Sleep App Timer")
             .setContentText("Your Sleep Timer is Up")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
