@@ -17,6 +17,7 @@ import android.widget.Toast
 import androidx.fragment.app.DialogFragment
 import es.dmoral.toasty.Toasty
 import java.util.*
+import kotlin.math.roundToInt
 
 //This class represents the TimePicker Dialog created when the user selects the "New Timer" button
 class TimePicker(
@@ -28,7 +29,7 @@ class TimePicker(
     TimePickerDialog.OnTimeSetListener {
 
     private val TAG = "TimePicker"
-
+    private var timePassedInMins: Int = 0
     private var currentTimeInMinutes: Int = 0
 
     override fun onTimeSet(
@@ -36,14 +37,12 @@ class TimePicker(
         hourOfDay: Int,
         minute: Int
     ) {
-        val prefName = getString(R.string.timePassedInMins)
-        sharedPreferences.edit()
-            .putInt(prefName, 0)
-            .apply()
-
+        Log.i(TAG, "onTimeSet: 39: TimeSet()")
         val cal = Calendar.getInstance()
         cal.set(Calendar.HOUR_OF_DAY, hourOfDay)
         cal.set(Calendar.MINUTE, minute)
+        var second = Calendar.SECOND
+        cal.set(Calendar.SECOND, second)
         val timeSetForInMins = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
         val timeSetAtInMins =
             currentTimeInMinutes //currentTimeInMins gets set in the OnCreateDialog function
@@ -56,24 +55,31 @@ class TimePicker(
         //timeSetDifference is the time difference between when the timer is set to go off
         // & between the time the timer is set at
 
+        val prefName = getString(R.string.timePassedInMins)
+
         val h = Handler()
+
+        var timePassedInMins =
+            sharedPreferences.getInt(prefName, 0)
 
         val runnable = object : Runnable {
             override fun run() {
-                var timePassedInMins = sharedPreferences.getInt(prefName, 0)
+                Log.i(TAG, "run()")
+
                 try {
-                    Log.i(TAG, "run()")
-                    timePassedInMins++
+                    timePassedInMins += 1
                     //add 1 to the "timePassedInMinutes" since timer inception
-                    sharedPreferences.edit().putInt(prefName, timePassedInMins).apply()
                     callback.updateProgressBar(
                         timePassedInMins,
                         timeSetForInMins - timeSetAtInMins,
                         null
                     )
                     val timePassedArray =
-                        MainActivity2.timeFixToArray(((timeSetForInMins - timeSetAtInMins) - timePassedInMins).toDouble() / 60)
+                        HomeFragment.timeFixToArray(((timeSetForInMins - timeSetAtInMins) - timePassedInMins).toDouble() / 60)
+                    //update text
                     callback.updateText("${timePassedArray[0]} : ${timePassedArray[1]}")
+                } catch (e: Exception) {
+                    e.printStackTrace()
                 } finally {
                     // 100% guarantee that this always happens, even if
                     // your update method throws an exception
@@ -86,13 +92,14 @@ class TimePicker(
         }
 
         sharedPreferences.edit().also {
-            it.putInt("TIME_SET_FOR_IN_MINS", timeSetAtInMins)
+            it.putInt(prefName, 0)
+            it.putInt("TIME_SET_FOR_IN_MINS", timeSetForInMins)
             it.putInt("TIME_SET_AT_IN_MINS", timeSetAtInMins)
         }.apply()
 
         h.postDelayed(runnable, 60000)
 
-        val arr = MainActivity2.timeFixToArray((timeSetForInMins - timeSetAtInMins).toDouble() / 60)
+        val arr = HomeFragment.timeFixToArray((timeSetForInMins - timeSetAtInMins).toDouble() / 60)
         callback.updateText("${arr[0]} : ${arr[1]}")
         callback.updateProgressBar(0, 0, 0)
 
@@ -102,7 +109,12 @@ class TimePicker(
             Toast.LENGTH_SHORT,
             true
         ).show()
+    }
 
+    override fun onPause() {
+        super.onPause()
+        sharedPreferences.edit()
+            .putInt(getString(R.string.timePassedInMins), timePassedInMins).apply()
     }
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
@@ -149,5 +161,4 @@ class TimePicker(
             cTimeInMilis + 1000, p
         )
     }
-
 }
