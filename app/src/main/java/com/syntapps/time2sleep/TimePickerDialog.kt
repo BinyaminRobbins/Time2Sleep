@@ -4,32 +4,26 @@ import android.app.AlarmManager
 import android.app.Dialog
 import android.app.PendingIntent
 import android.app.TimePickerDialog
-import android.content.ComponentName
-import android.content.Context
-import android.content.Intent
-import android.content.SharedPreferences
+import android.content.*
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.os.Handler
 import android.text.format.DateFormat
 import android.util.Log
-import android.widget.Toast
 import androidx.fragment.app.DialogFragment
-import es.dmoral.toasty.Toasty
 import java.util.*
-import kotlin.math.roundToInt
 
 //This class represents the TimePicker Dialog created when the user selects the "New Timer" button
 class TimePicker(
     private val myContext: Context,
     private val sharedPreferences: SharedPreferences,
-    private val callback: MyCallback
+    private val br: BroadcastReceiver,
+    private val filter: IntentFilter
 ) :
     DialogFragment(),
     TimePickerDialog.OnTimeSetListener {
 
     private val TAG = "TimePicker"
-    private var timePassedInMins: Int = 0
+
     private var currentTimeInMinutes: Int = 0
 
     override fun onTimeSet(
@@ -41,88 +35,37 @@ class TimePicker(
         val cal = Calendar.getInstance()
         cal.set(Calendar.HOUR_OF_DAY, hourOfDay)
         cal.set(Calendar.MINUTE, minute)
-        var second = Calendar.SECOND
-        cal.set(Calendar.SECOND, second)
         val timeSetForInMins = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
         val timeSetAtInMins =
             currentTimeInMinutes //currentTimeInMins gets set in the OnCreateDialog function
 
-        setAlarm(
-            myContext,
-            cal.timeInMillis,
-            timeSetForInMins - timeSetAtInMins
-        )
-        //timeSetDifference is the time difference between when the timer is set to go off
-        // & between the time the timer is set at
-
-        val prefName = getString(R.string.timePassedInMins)
-
-        val h = Handler()
-
-        var timePassedInMins =
-            sharedPreferences.getInt(prefName, 0)
-
-        val runnable = object : Runnable {
-            override fun run() {
-                Log.i(TAG, "run()")
-
-                try {
-                    timePassedInMins += 1
-                    //add 1 to the "timePassedInMinutes" since timer inception
-                    callback.updateProgressBar(
-                        timePassedInMins,
-                        timeSetForInMins - timeSetAtInMins,
-                        null
-                    )
-                    val timePassedArray =
-                        HomeFragment.timeFixToArray(((timeSetForInMins - timeSetAtInMins) - timePassedInMins).toDouble() / 60)
-                    //update text
-                    callback.updateText("${timePassedArray[0]} : ${timePassedArray[1]}")
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                } finally {
-                    // 100% guarantee that this always happens, even if
-                    // your update method throws an exception
-                    h.postDelayed(this, 60000)
-                    if ((timeSetForInMins - timeSetAtInMins) - timePassedInMins <= 0) {
-                        h.removeCallbacks(this)
-                    }
-                }
-            }
-        }
-
         sharedPreferences.edit().also {
-            it.putInt(prefName, 0)
+            it.putInt(getString(R.string.timePassedInMins), 0)
             it.putInt("TIME_SET_FOR_IN_MINS", timeSetForInMins)
             it.putInt("TIME_SET_AT_IN_MINS", timeSetAtInMins)
         }.apply()
 
-        h.postDelayed(runnable, 60000)
-
-        val arr = HomeFragment.timeFixToArray((timeSetForInMins - timeSetAtInMins).toDouble() / 60)
-        callback.updateText("${arr[0]} : ${arr[1]}")
-        callback.updateProgressBar(0, 0, 0)
-
-        Toasty.info(
+        setAlarm(
             myContext,
-            "New Timer Set for ${arr[0]} hour/s & ${arr[1]} mins",
-            Toast.LENGTH_SHORT,
-            true
-        ).show()
-    }
+            cal.timeInMillis + (cal.get(Calendar.SECOND).toLong() / 60),
+            timeSetForInMins - timeSetAtInMins
+        )
 
-    override fun onPause() {
-        super.onPause()
-        sharedPreferences.edit()
-            .putInt(getString(R.string.timePassedInMins), timePassedInMins).apply()
+        myContext.registerReceiver(br, filter)
+
+        myContext.sendBroadcast(Intent("TimePickerSet").also {
+            it.putExtra("TIME_SET_FOR_IN_MINS", timeSetForInMins)
+            it.putExtra("TIME_SET_AT_IN_MINS", timeSetAtInMins)
+        })
     }
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         val c = GregorianCalendar(TimeZone.getDefault())
         val hour = c.get(GregorianCalendar.HOUR_OF_DAY)
         val minute = c.get(GregorianCalendar.MINUTE)
+        val s = c.get(GregorianCalendar.SECOND)
 
-        currentTimeInMinutes = (hour * 60) + minute
+        currentTimeInMinutes = (hour * 60) + minute + (s / 60)
 
         // Create a new instance of TimePickerDialog and return it
         return TimePickerDialog(
@@ -156,9 +99,10 @@ class TimePicker(
         )
 
         val p = PendingIntent.getBroadcast(myContext, 1, i, 0)
+        alarmManager.cancel(p) // cancel all pending alarms and set a new one
         alarmManager.setExact(
             AlarmManager.RTC_WAKEUP,
-            cTimeInMilis + 1000, p
+            cTimeInMilis + 30000, p
         )
     }
 }
