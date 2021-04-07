@@ -15,7 +15,6 @@ import android.widget.*
 import androidx.fragment.app.Fragment
 import es.dmoral.toasty.Toasty
 import java.util.*
-import kotlin.concurrent.timer
 import kotlin.math.roundToInt
 
 class HomeFragment(private val fragContext: Context) : Fragment(),
@@ -119,18 +118,23 @@ class HomeFragment(private val fragContext: Context) : Fragment(),
     }
 
     override fun onPause() {
-        Toast.makeText(
-            fragContext,
-            "Making sure your timer keeps running...", Toast.LENGTH_LONG
-        )
-            .show()
-        sharedPrefs.edit()
-            .putInt(getString(R.string.timePassedInMins), timePassedInMins).apply()
+        if (timePickerHandler != null && timePickerRunnable != null) {
+            Toast.makeText(
+                fragContext,
+                "Making sure your timer keeps running...", Toast.LENGTH_LONG
+            )
+                .show()
 
-        timePickerHandler?.removeCallbacks(timePickerRunnable)
+            Log.i(TAG, "onPause: 128: timePassesInMins = $timePassedInMins")
+            sharedPrefs.edit()
+                .putInt(getString(R.string.timePassedInMins), timePassedInMins).apply()
 
-        requireActivity().applicationContext.startService(serviceIntent)
-        super.onPause()
+
+            timePickerHandler!!.removeCallbacks(timePickerRunnable!!)
+
+            requireActivity().applicationContext.startService(serviceIntent)
+            super.onPause()
+        }
     }
 
     override fun onResume() {
@@ -146,18 +150,37 @@ class HomeFragment(private val fragContext: Context) : Fragment(),
         val timeSetAt = sharedPrefs.getInt("TIME_SET_AT_IN_MINS", 0)
         val timePassed = sharedPrefs.getInt(getString(R.string.timePassedInMins), 0)
         Log.i(TAG, "onResume: 129: timePassedInMins = $timePassed")
-        val arr = timeFixToArray(
-            ((timeSetFor - timeSetAt) - timePassed).toDouble() / 60
-        )
-        myCallback.updateText("${arr[0]} : ${arr[1]}")
+        val timeDiff = (timeSetFor - timeSetAt) - timePassed
+        if (timeDiff > 0) {
+            Log.i(TAG, "onResume: 155: timeDiff is greater than 0")
+            val arr = timeFixToArray(
+                (timeDiff).toDouble() / 60
+            )
+            myCallback.updateText("${arr[0]} : ${arr[1]}")
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            //cancel all notifications when app resumed
-            val notificationManager: NotificationManager =
-                fragContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.cancelAll()
+            myCallback.updateProgressBar(
+                timePassed,
+                timeSetFor - timeSetAt,
+                null
+            )
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                //cancel all notifications when app resumed
+                val notificationManager: NotificationManager =
+                    fragContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                notificationManager.cancelAll()
+            }
+            timePickerHandler?.postDelayed(timePickerRunnable!!, 60000/* 1min */)
+        } else {
+            Log.i(TAG, "onResume: 174: timeDiff is <= 0")
+            myCallback.updateText("00 : 00")
+
+            myCallback.updateProgressBar(
+                timePassed,
+                timeSetFor - timeSetAt,
+                100
+            )
         }
-        timePickerHandler?.postDelayed(timePickerRunnable, 60000/* 1min */)
         super.onResume()
     }
 
@@ -189,11 +212,11 @@ class HomeFragment(private val fragContext: Context) : Fragment(),
             override fun updateProgressBar(
                 timePassedInMinutes: Int,
                 timeDifferenceInMins: Int,
-                overrideSetNum: Int?
+                overrideSetPercentage: Int?
             ) {
-                Log.i("TimePicker", "updateProgressBar: 132: Updating Progress Bar")
-                var progressPercentage: Float = if (overrideSetNum != null) {
-                    overrideSetNum.toFloat()
+                Log.i(TAG, "updateProgressBar: 132: Updating Progress Bar")
+                var progressPercentage: Float = if (overrideSetPercentage != null) {
+                    overrideSetPercentage.toFloat()
                 } else {
                     (timePassedInMinutes.toDouble() / timeDifferenceInMins.toDouble()).toFloat() * 100
                 }
@@ -251,7 +274,6 @@ class HomeFragment(private val fragContext: Context) : Fragment(),
             timePickerHandler =
                 Handler(Looper.getMainLooper()) //this should ensure there is ony one handler at a time
             if (timePickerRunnable != null) timePickerHandler?.removeCallbacks(timePickerRunnable)
-            // TODO: 02/04/2021 change handler to this class and not in TimePicker in order to cancel all runnig handler/runnables when new timer set
 
             val arr = timeFixToArray((timeSetForInMins - timeSetAtInMins).toDouble() / 60)
             myCallback.updateText("${arr[0]} : ${arr[1]}")
