@@ -2,6 +2,8 @@ package com.syntapps.time2sleep
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
+import android.app.TaskStackBuilder
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -10,6 +12,7 @@ import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+
 
 class Alarm : BroadcastReceiver() {
 
@@ -58,16 +61,35 @@ class Alarm : BroadcastReceiver() {
     }
 
     private fun sendNotification(myContext: Context) {
-        val builder = NotificationCompat.Builder(myContext, "T2S_ID")
-            .setSmallIcon(R.mipmap.ic_launcher_xd)
-            .setContentTitle("Time2Sleep App Timer")
-            .setContentText("Your Sleep Timer is Up")
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .setAutoCancel(true)
+
+        //this is to create clickable notification that leads to MainActivity
+        // Create an Intent for the activity you want to start
+        val resultIntent = Intent(myContext, MainActivity::class.java)
+        // Create the TaskStackBuilder
+        val resultPendingIntent: PendingIntent? = TaskStackBuilder.create(myContext).run {
+                    // Add the intent, which inflates the back stack
+            addNextIntentWithParentStack(resultIntent)
+                    // Get the PendingIntent containing the entire back stack
+            getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT)
+        }
+
+        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            NotificationCompat.Builder(myContext, "T2S_ID")
+                .setSmallIcon(R.drawable.t2s_icon_notif)
+                .setColor(myContext.getColor(R.color.colorPrimaryDark))
+                .setContentTitle("Time2Sleep App Timer")
+                .setContentText("Your Sleep Timer is Up")
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setAutoCancel(true)
+                .setContentIntent(resultPendingIntent)
+        } else {
+            TODO("VERSION.SDK_INT < M")
+        }
 
         with(NotificationManagerCompat.from(myContext)) {
             // notificationId is a unique int for each notification that you must define
             notify(123, builder.build())
         }
     }
+
 }
