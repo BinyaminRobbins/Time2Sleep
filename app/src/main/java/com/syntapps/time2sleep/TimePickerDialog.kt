@@ -102,7 +102,7 @@ class TimePicker(
         alarmManager.cancel(p) // cancel all pending alarms and set a new one
         alarmManager.setExact(
             AlarmManager.RTC_WAKEUP,
-            cTimeInMilis + 30000, p
+            cTimeInMilis + 60000, p
         )
     }
 }
