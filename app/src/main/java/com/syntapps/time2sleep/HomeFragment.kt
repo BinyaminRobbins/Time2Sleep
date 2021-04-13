@@ -1,12 +1,14 @@
 package com.syntapps.time2sleep
 
 import ProgressBarAnimation
+import android.app.Notification
 import android.app.NotificationManager
 import android.content.*
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.text.Html
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -117,6 +119,11 @@ class HomeFragment(private val fragContext: Context) : Fragment(),
         }
     }
 
+    override fun onDestroy() {
+        Log.i(TAG, "onDestroy: 121: Destroying Application...")
+        super.onDestroy()
+    }
+
     override fun onPause() {
         if (timePickerHandler != null && timePickerRunnable != null) {
             Toast.makeText(
@@ -125,16 +132,22 @@ class HomeFragment(private val fragContext: Context) : Fragment(),
             )
                 .show()
 
-            Log.i(TAG, "onPause: 128: timePassesInMins = $timePassedInMins")
+            Log.i(TAG, "onPause: 128: timePassedInMins = $timePassedInMins")
             sharedPrefs.edit()
                 .putInt(getString(R.string.timePassedInMins), timePassedInMins).apply()
 
 
             timePickerHandler!!.removeCallbacks(timePickerRunnable!!)
 
+            /* if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                 Log.i(TAG, "onPause: 141: Starting - Foreground - Service...")
+                 requireActivity().applicationContext.startForegroundService(serviceIntent)
+             }else {*/
+            Log.i(TAG, "onPause: 144: Starting Service...")
             requireActivity().applicationContext.startService(serviceIntent)
-            super.onPause()
+            //}
         }
+        super.onPause()
     }
 
     override fun onResume() {
@@ -143,7 +156,7 @@ class HomeFragment(private val fragContext: Context) : Fragment(),
         try { //stop service
             requireActivity().applicationContext.stopService(serviceIntent)
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "onResume: 159: ${e.printStackTrace()} :\n${e.message}")
         }
 
         val timeSetFor = sharedPrefs.getInt("TIME_SET_FOR_IN_MINS", 0)
@@ -181,6 +194,7 @@ class HomeFragment(private val fragContext: Context) : Fragment(),
                 100
             )
         }
+        Log.i(TAG, "onResume: 197: TEST")
         super.onResume()
     }
 
