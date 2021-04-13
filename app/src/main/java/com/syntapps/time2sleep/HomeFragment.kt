@@ -1,19 +1,16 @@
 package com.syntapps.time2sleep
 
 import ProgressBarAnimation
-import android.app.Notification
-import android.app.NotificationManager
 import android.content.*
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.text.Html
+import android.os.IBinder
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.*
+import androidx.appcompat.widget.SwitchCompat
 import androidx.core.content.ContextCompat.startForegroundService
 import androidx.fragment.app.Fragment
 import es.dmoral.toasty.Toasty
@@ -26,8 +23,10 @@ class HomeFragment(private val fragContext: Context) : Fragment(),
 
     private val TAG = "HomeFragment"
     private lateinit var sharedPrefs: SharedPreferences
+    private var myService: MyBoundService? = null
+    private var isBound = false
 
-    private lateinit var myCallback: MyCallback
+    open lateinit var myCallback: MyCallback
 
     private lateinit var spotifySwitchObject: SwitchObject
     private lateinit var youtubeSwitchObject: SwitchObject
@@ -43,8 +42,9 @@ class HomeFragment(private val fragContext: Context) : Fragment(),
     private lateinit var progressBar: ProgressBar
 
     private lateinit var br: BroadcastReceiver
-    private var timePickerHandler: Handler? = null
-    private var timePickerRunnable: Runnable? = null
+
+    /*  private var timePickerHandler: Handler? = null
+      private var timePickerRunnable: Runnable? = null*/
     private var timePassedInMins = 0
 
     override fun onCreateView(
@@ -86,6 +86,18 @@ class HomeFragment(private val fragContext: Context) : Fragment(),
         return rootView
     }
 
+    private val myConnection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+            val binder = service as MyBoundService.MyLocalBinder
+            myService = binder.getService()
+            isBound = true
+        }
+
+        override fun onServiceDisconnected(name: ComponentName?) {
+            isBound = false
+        }
+    }
+
     override fun onCheckedChanged(buttonView: CompoundButton?, isChecked: Boolean) {
         when (buttonView) {
             spotifySwitch -> spotifySwitchObject.switchClicked(isChecked)
@@ -119,6 +131,7 @@ class HomeFragment(private val fragContext: Context) : Fragment(),
         }
     }
 
+
     override fun onDestroy() {
         Log.i(TAG, "onDestroy: 121: Destroying Application...")
         super.onDestroy()
@@ -126,7 +139,7 @@ class HomeFragment(private val fragContext: Context) : Fragment(),
 
     private fun actionOnService(action: String) {
         if (action == getString(R.string.Action_StopService)) return
-        Intent(requireActivity().applicationContext, MyService::class.java).also {
+        Intent(requireActivity().applicationContext, MyBoundService::class.java).also {
             it.action = getString(R.string.Action_StartService)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 Log.i(TAG, "Starting the service in >=26 Mode")
@@ -222,7 +235,7 @@ class HomeFragment(private val fragContext: Context) : Fragment(),
         super.onCreate(savedInstanceState)
         //onCreate for non-graphical initializations
 
-        sharedPrefs = activity!!.applicationContext.getSharedPreferences(
+        sharedPrefs = fragContext.getSharedPreferences(
             getString(R.string.sharedPrefsName),
             0
         )
@@ -230,7 +243,9 @@ class HomeFragment(private val fragContext: Context) : Fragment(),
         timePassedInMins = sharedPrefs.getInt(getString(R.string.timePassedInMins), 0)
         //       serviceIntent = Intent(fragContext, MyService::class.java)
 
-        //this might fail //todo check!!
+        //create intent and bind bound service to connection and IBinder obj
+        val boundIntent = Intent(requireActivity().applicationContext, MyBoundService::class.java)
+        fragContext.bindService(boundIntent, myConnection, Context.BIND_AUTO_CREATE)
     }
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
@@ -288,11 +303,35 @@ class HomeFragment(private val fragContext: Context) : Fragment(),
             }
             return arr
         }
-
     }
 
     inner class MyReceiver : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
+
+            fragContext.unregisterReceiver(this) //unregister in-order to ensure that only received once
+
+            sharedPrefs.edit().putInt(getString(R.string.timePassedInMins), 0).apply()
+            timePassedInMins = sharedPrefs.getInt(getString(R.string.timePassedInMins), 0)
+            Log.i(TAG, "onReceive: 238: timePassedInMins = $timePassedInMins")
+
+            Log.i(TAG, "onReceive: 233: Broadcast Received with action ${intent?.action}")
+
+            if (intent != null) {
+                val timeSetForInMins = intent.getIntExtra("TIME_SET_FOR_IN_MINS", 0)
+                val timeSetAtInMins = intent.getIntExtra("TIME_SET_AT_IN_MINS", 0)
+
+                val arr = timeFixToArray((timeSetForInMins - timeSetAtInMins).toDouble() / 60)
+                myCallback.updateText("${arr[0]} : ${arr[1]}")
+                myCallback.updateProgressBar(0, 0, 0)
+
+                Toasty.info(
+                    fragContext,
+                    "New timer set for ${arr[0]} hour/s & ${arr[1]} mins",
+                    Toast.LENGTH_SHORT,
+                    true
+                ).show()
+            }
+
             actionOnService(getString(R.string.Action_StartService))
         }
     }
