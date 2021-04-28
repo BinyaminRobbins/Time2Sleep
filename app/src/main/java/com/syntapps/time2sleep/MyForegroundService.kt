@@ -7,68 +7,33 @@ import android.os.*
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
-import com.syntapps.time2sleep.HomeFragment.MyReceiver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.io.Serializable
 
 
-class MyBoundService : Service() {
+class MyForegroundService : Service() {
 
     private var wakeLock: PowerManager.WakeLock? = null
     private var isServiceStarted: Boolean = false
 
     private val TAG = "MyService"
-    private lateinit var sharedPrefs: SharedPreferences
     private val handler = Handler()
     private var runnable: Runnable? = null
-    private var timePassedInMins: Int = 0
-    private var br: BroadcastReceiver? = null
-    private var filter: IntentFilter? = null
 
-    private val mBinder = MyLocalBinder()
+    private lateinit var timeObj: MyTimeObj
 
-    override fun onBind(intent: Intent?): IBinder {
-        // TODO: 13/04/2021 ("Return the communication channel to the service")
-        return mBinder
-    }
+    override fun onBind(intent: Intent?): IBinder? = null
 
-    inner class MyLocalBinder : Binder() {
-        fun getService(): MyBoundService {
-            return this@MyBoundService
-
-        }
+    override fun onDestroy() {
+        Log.i(TAG, "onDestroy: Destroying Service...")
+        super.onDestroy()
     }
 
     override fun onCreate() {
         super.onCreate()
         Log.i(TAG, "onCreate: 32: SERVICE CREATED")
-
-        sharedPrefs = getSharedPreferences(getString(R.string.sharedPrefsName), 0)
-        val timeSetForInMins = sharedPrefs.getInt("TIME_SET_FOR_IN_MINS", 0)
-        val timeSetAtInMins = sharedPrefs.getInt("TIME_SET_AT_IN_MINS", 0)
-        runnable = object : Runnable {
-            override fun run() {
-                Log.i(TAG, "run: 31: run()")
-                timePassedInMins =
-                    sharedPrefs.getInt(getString(R.string.timePassedInMins), 0)
-                Log.i(TAG, "run: 40: timePassedInMins = $timePassedInMins")
-
-                timePassedInMins += 1
-                sharedPrefs.edit()
-                    .putInt(getString(R.string.timePassedInMins), timePassedInMins).apply()
-
-                if ((timeSetForInMins - timeSetAtInMins) - timePassedInMins == 0) {
-                    Log.i(TAG, "run: 46: TIME UP!!")
-                    sharedPrefs.edit()
-                        .putInt(getString(R.string.timePassedInMins), timePassedInMins).apply()
-                    handler.removeCallbacks(this)
-                    stopSelf()
-                } else handler.postDelayed(this, 60000)
-            }
-        }
 
         val notification = createNotification()
         startForeground(1, notification.build())
@@ -81,15 +46,31 @@ class MyBoundService : Service() {
             val action = intent.action
             Log.i(TAG, "onStartCommand: 43: started intent with action: $action")
 
-            registerReceiver(br, filter)
-
-            sendBroadcast(Intent("UpdateUI").also {
-
-            })
-
             when (action) {
-                getString(R.string.Action_StartService) -> startMyService()
-                getString(R.string.Action_StopService) -> stopMyService()
+                "START" -> {
+                    timeObj = intent.getParcelableExtra("TIME_OBJ") as MyTimeObj
+                    var timePassedInMins = timeObj.timePassed
+
+                    runnable = object : Runnable {
+
+                        override fun run() {
+                            Log.i(TAG, "run: 31: run()")
+                            Log.i(TAG, "run: 40: timePassedInMins = $timePassedInMins")
+
+                            timePassedInMins += 1
+                            timeObj.timePassed = timePassedInMins
+
+                            if (timeObj.getTimeDifference() - timePassedInMins == 0) {
+                                Log.i(TAG, "run: 46: TIME UP!!")
+                                handler.removeCallbacks(this)
+                                stopMyService()
+                            } else handler.postDelayed(this, 60000)
+                        }
+                    }
+
+                    startMyService()
+                }
+                "STOP" -> stopMyService()
                 else -> Log.i(TAG, "onStartCommand: 47: No action in the received intent")
             }
         } else {
@@ -135,6 +116,9 @@ class MyBoundService : Service() {
                     it.release()
                 }
             }
+            sendBroadcast(Intent("Service Stopped").also {
+                it.putExtra("TIME_OBJ", timeObj)
+            })
             stopForeground(true)
             stopSelf()
         } catch (e: Exception) {
@@ -144,7 +128,7 @@ class MyBoundService : Service() {
     }
 
     private fun createNotification(): NotificationCompat.Builder {
-// Create the NotificationChannel, but only on API 26+ because
+        // Create the NotificationChannel, but only on API 26+ because
         // the NotificationChannel class is new and not in the support library
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val name = "Time2Sleep App Timer"

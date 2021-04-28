@@ -10,12 +10,12 @@ import android.os.Bundle
 import android.text.format.DateFormat
 import android.util.Log
 import androidx.fragment.app.DialogFragment
+import java.io.Serializable
 import java.util.*
 
 //This class represents the TimePicker Dialog created when the user selects the "New Timer" button
 class TimePicker(
     private val myContext: Context,
-    private val sharedPreferences: SharedPreferences,
     private val br: BroadcastReceiver,
     private val filter: IntentFilter
 ) :
@@ -37,13 +37,8 @@ class TimePicker(
         cal.set(Calendar.MINUTE, minute)
         val timeSetForInMins = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
         val timeSetAtInMins =
-            currentTimeInMinutes //currentTimeInMins gets set in the OnCreateDialog function
-
-        sharedPreferences.edit().also {
-            it.putInt(getString(R.string.timePassedInMins), 0)
-            it.putInt("TIME_SET_FOR_IN_MINS", timeSetForInMins)
-            it.putInt("TIME_SET_AT_IN_MINS", timeSetAtInMins)
-        }.apply()
+            currentTimeInMinutes
+        //currentTimeInMins gets set in the OnCreateDialog function
 
         setAlarm(
             myContext,
@@ -52,6 +47,9 @@ class TimePicker(
         )
 
         myContext.registerReceiver(br, filter)
+
+        Log.i(TAG, "onTimeSet: timeSetForInMins: $timeSetForInMins")
+        Log.i(TAG, "onTimeSet: timeSetAtInMins: $timeSetAtInMins")
 
         myContext.sendBroadcast(Intent("TimePickerSet").also {
             it.putExtra("TIME_SET_FOR_IN_MINS", timeSetForInMins)

@@ -79,7 +79,7 @@ class Alarm : BroadcastReceiver() {
                 .setColor(myContext.getColor(R.color.colorPrimaryDark))
                 .setContentTitle("Time2Sleep App Timer")
                 .setContentText("Your Sleep Timer is Up")
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setAutoCancel(true)
                 .setContentIntent(resultPendingIntent)
         } else {
