@@ -331,8 +331,6 @@ class HomeFragment(private val fragContext: Context) : Fragment(),
                     "Service Stopped" -> {
                         timeObj = intent!!.getParcelableExtra("TIME_OBJ") as MyTimeObj
 
-                        val timeSetFor = timeObj.timeSetFor
-                        val timeSetAt = timeObj.timeSetAt
                         val timePassed = timeObj.timePassed
                         Log.i(TAG, "onResume: 129: timePassedInMins = $timePassed")
                         if (timeObj.getTimeDifference() - timePassed > 0) {
