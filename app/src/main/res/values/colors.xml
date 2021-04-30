@@ -3,4 +3,10 @@
     <color name="colorPrimary">#0B111E</color>
     <color name="colorPrimaryDark">#151B28</color>
     <color name="colorAccent">#06A300</color>
+    <array name="dot_colors">
+        <item>#06A300</item>
+        <item>#FAFAFA</item>
+        <item>#06A300</item>
+    </array>
+
 </resources>

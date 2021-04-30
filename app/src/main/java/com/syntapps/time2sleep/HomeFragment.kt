@@ -13,6 +13,7 @@ import android.view.ViewGroup
 import android.widget.*
 import androidx.core.content.ContextCompat.startForegroundService
 import androidx.fragment.app.Fragment
+import com.bhargavms.dotloader.DotLoader
 import es.dmoral.toasty.Toasty
 import java.io.Serializable
 import java.util.*
@@ -38,6 +39,7 @@ class HomeFragment(private val fragContext: Context) : Fragment(),
 
     private lateinit var timeLeftTV: TextView
     private lateinit var progressBar: ProgressBar
+    private lateinit var dot_loader: DotLoader
 
     private var timePickerHandler = Handler()
     private lateinit var timePickerRunnable: Runnable
@@ -81,6 +83,8 @@ class HomeFragment(private val fragContext: Context) : Fragment(),
         timeLeftTV = rootView.findViewById(R.id.timeLeftTV)
 
         progressBar = rootView.findViewById(R.id.progressBar)
+
+        dot_loader = rootView.findViewById(R.id.dot_loader)
 
         return rootView
     }
@@ -242,7 +246,7 @@ class HomeFragment(private val fragContext: Context) : Fragment(),
                     val intentFilter = IntentFilter()
                     intentFilter.addAction("TimePickerSet")
                     intentFilter.addAction("Service Stopped")
-
+                    dot_loader.visibility = View.INVISIBLE
                 } else {
                     //if timer has not ended after 1 min then set a handler/runnable post delayed for another 1 min. then check back
                     timePickerHandler.postDelayed(this, 60000)
@@ -325,6 +329,8 @@ class HomeFragment(private val fragContext: Context) : Fragment(),
                             Log.e(TAG2, "onReceive: ${e.localizedMessage}")
                         }
                         timePickerHandler.postDelayed(timePickerRunnable, 60000)
+
+                        dot_loader.visibility = View.VISIBLE
                     }
 
                     "Service Stopped" -> {
