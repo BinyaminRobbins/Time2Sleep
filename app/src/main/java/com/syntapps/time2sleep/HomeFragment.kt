@@ -6,7 +6,6 @@ import android.content.*
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
-import android.os.Parcelable
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -331,8 +330,6 @@ class HomeFragment(private val fragContext: Context) : Fragment(),
                     "Service Stopped" -> {
                         timeObj = intent!!.getParcelableExtra("TIME_OBJ") as MyTimeObj
 
-                        val timeSetFor = timeObj.timeSetFor
-                        val timeSetAt = timeObj.timeSetAt
                         val timePassed = timeObj.timePassed
                         Log.i(TAG, "onResume: 129: timePassedInMins = $timePassed")
                         if (timeObj.getTimeDifference() - timePassed > 0) {
