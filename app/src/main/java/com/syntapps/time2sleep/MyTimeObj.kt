@@ -54,7 +54,8 @@ class MyTimeObj : Parcelable {
     }
 
     fun getTimeDifference(): Int {
-        return (timeSetFor - timeSetAt) - timePassed
+        //the spread between when the timer was set and when it was set to go off
+        return (timeSetFor - timeSetAt)
     }
 
 

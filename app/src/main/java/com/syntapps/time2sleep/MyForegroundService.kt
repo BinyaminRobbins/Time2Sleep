@@ -27,6 +27,7 @@ class MyForegroundService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        stopMyService()
         Log.i(TAG, "onDestroy: Destroying Service...")
         super.onDestroy()
     }
@@ -40,43 +41,35 @@ class MyForegroundService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.i(TAG, "onStartCommand executed with start ID: $startId")
-
         if (intent != null) {
             val action = intent.action
             Log.i(TAG, "onStartCommand: 43: started intent with action: $action")
+            if (action == "START") {
+                timeObj = intent.getParcelableExtra("TIME_OBJ") as MyTimeObj
+                Log.i(TAG, "onStartCommand: timePassed = ${timeObj.timePassed}")
+                runnable = object : Runnable {
 
-            when (action) {
-                "START" -> {
-                    timeObj = intent.getParcelableExtra("TIME_OBJ") as MyTimeObj
-                    var timePassedInMins = timeObj.timePassed
+                    override fun run() {
+                        Log.i(TAG, "run: run()")
+                        Log.i(TAG, "run: timePassedInMins = ${timeObj.timePassed}")
+                        timeObj.oneMinutePassed()
+                        Log.i(TAG, "run:timePassedInMins (after minute) = ${timeObj.timePassed}")
 
-                    runnable = object : Runnable {
-
-                        override fun run() {
-                            Log.i(TAG, "run: 31: run()")
-                            Log.i(TAG, "run: 40: timePassedInMins = $timePassedInMins")
-
-                            timePassedInMins += 1
-                            timeObj.timePassed = timePassedInMins
-
-                            if (timeObj.getTimeDifference() - timePassedInMins == 0) {
-                                Log.i(TAG, "run: 46: TIME UP!!")
-                                handler.removeCallbacks(this)
-                                stopMyService()
-                            } else handler.postDelayed(this, 60000)
-                        }
+                        if ((timeObj.getTimeDifference() - timeObj.timePassed) == 0) {
+                            Log.i(TAG, "run: 46: TIME UP!!")
+                            handler.removeCallbacks(this)
+                            stopMyService()
+                        } else handler.postDelayed(this, 60000)
                     }
-
-                    startMyService()
                 }
-                "STOP" -> stopMyService()
-                else -> Log.i(TAG, "onStartCommand: 47: No action in the received intent")
+
+                startMyService()
+            } else {
+                Log.i(TAG, "onStartCommand: non-recognized intent action : $action")
             }
         } else {
             Log.i(TAG, "onStartCommand: 50: NULL INTENT")
         }
-
         return START_STICKY
     }
 
@@ -98,7 +91,9 @@ class MyForegroundService : Service() {
                 launch(Dispatchers.IO) {
                     //run code
                     Log.i(TAG, "startMyService: 99: Coroutine Launched")
-                    handler.postDelayed(runnable, 60000 /*(every 1 min)*/)
+                    if (runnable != null) {
+                        handler.postDelayed(runnable!!, 60000 /*(every 1 min)*/)
+                    }
                     isServiceStarted = true
                 }
                 //delay(1 * 60 * 1000 /*1 minute*/)
@@ -110,15 +105,15 @@ class MyForegroundService : Service() {
 
     private fun stopMyService() {
         Log.i(TAG, "Stopping Foreground Service from stopMyService()")
+        sendBroadcast(Intent("Service Stopped").also {
+            it.putExtra("TIME_OBJ", timeObj)
+        })
         try {
             wakeLock?.let {
                 if (it.isHeld) {
                     it.release()
                 }
             }
-            sendBroadcast(Intent("Service Stopped").also {
-                it.putExtra("TIME_OBJ", timeObj)
-            })
             stopForeground(true)
             stopSelf()
         } catch (e: Exception) {

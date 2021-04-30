@@ -46,8 +46,6 @@ class TimePicker(
             timeSetForInMins - timeSetAtInMins
         )
 
-        myContext.registerReceiver(br, filter)
-
         Log.i(TAG, "onTimeSet: timeSetForInMins: $timeSetForInMins")
         Log.i(TAG, "onTimeSet: timeSetAtInMins: $timeSetAtInMins")
 
