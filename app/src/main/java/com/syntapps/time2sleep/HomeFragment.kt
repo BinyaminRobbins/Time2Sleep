@@ -6,14 +6,16 @@ import android.content.*
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
-import android.os.Looper
+import android.os.Parcelable
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.*
+import androidx.core.content.ContextCompat.startForegroundService
 import androidx.fragment.app.Fragment
 import es.dmoral.toasty.Toasty
+import java.io.Serializable
 import java.util.*
 import kotlin.math.roundToInt
 
@@ -23,8 +25,6 @@ class HomeFragment(private val fragContext: Context) : Fragment(),
 
     private val TAG = "HomeFragment"
     private lateinit var sharedPrefs: SharedPreferences
-
-    private lateinit var serviceIntent: Intent
     private lateinit var myCallback: MyCallback
 
     private lateinit var spotifySwitchObject: SwitchObject
@@ -40,10 +40,12 @@ class HomeFragment(private val fragContext: Context) : Fragment(),
     private lateinit var timeLeftTV: TextView
     private lateinit var progressBar: ProgressBar
 
+    private var timePickerHandler = Handler()
+    private lateinit var timePickerRunnable: Runnable
     private lateinit var br: BroadcastReceiver
-    private var timePickerHandler: Handler? = null
-    private var timePickerRunnable: Runnable? = null
-    private var timePassedInMins = 0
+
+    private lateinit var timeObj: MyTimeObj
+    private lateinit var serviceIntent: Intent
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -84,6 +86,7 @@ class HomeFragment(private val fragContext: Context) : Fragment(),
         return rootView
     }
 
+
     override fun onCheckedChanged(buttonView: CompoundButton?, isChecked: Boolean) {
         when (buttonView) {
             spotifySwitch -> spotifySwitchObject.switchClicked(isChecked)
@@ -100,11 +103,12 @@ class HomeFragment(private val fragContext: Context) : Fragment(),
 
                 val filter = IntentFilter()
                 filter.addAction("TimePickerSet")
-                TimePicker(fragContext, sharedPrefs, br, filter).show(
+
+                TimePicker(fragContext, MyReceiver(), filter).show(
                     fragmentManager!!,
                     null
                 )
-                //fragContext.registerReceiver(broadcastReceiver, filter)
+                fragContext.registerReceiver(br, filter)
 
                 // TODO: 13/02/2021 Create loading icon that shows that progress bar is running and time is being tracked
                 // probably 3 dot changing icons
@@ -118,68 +122,38 @@ class HomeFragment(private val fragContext: Context) : Fragment(),
     }
 
     override fun onPause() {
-        if (timePickerHandler != null && timePickerRunnable != null) {
+        if (timeObj.getTimeDifference() - timeObj.timePassed > 0) {
+
             Toast.makeText(
                 fragContext,
                 "Making sure your timer keeps running...", Toast.LENGTH_LONG
-            )
-                .show()
+            ).show()
 
-            Log.i(TAG, "onPause: 128: timePassesInMins = $timePassedInMins")
-            sharedPrefs.edit()
-                .putInt(getString(R.string.timePassedInMins), timePassedInMins).apply()
+            timePickerHandler.removeCallbacks(timePickerRunnable)
 
-
-            timePickerHandler!!.removeCallbacks(timePickerRunnable!!)
-
-            requireActivity().applicationContext.startService(serviceIntent)
-            super.onPause()
+            startMyService()
         }
+
+        super.onPause()
     }
 
+    override fun onDestroy() {
+        Log.i(TAG, "onDestroy: 121: Destroying Application...")
+        sharedPrefs.edit().also {
+            it.putInt("TIME_SET_FOR_IN_MINS", timeObj.timeSetFor)
+            it.putInt("TIME_SET_AT_IN_MINS", timeObj.timeSetAt)
+            it.putInt(getString(R.string.timePassedInMins), timeObj.timePassed)
+        }.apply()
+        super.onDestroy()
+    }
+
+
     override fun onResume() {
-        // TODO: 10/03/2021 get the previous timer text and pbar progress
         Log.i(TAG, "onResume()")
         try { //stop service
-            requireActivity().applicationContext.stopService(serviceIntent)
+            fragContext.stopService(serviceIntent)
         } catch (e: Exception) {
-            e.printStackTrace()
-        }
-
-        val timeSetFor = sharedPrefs.getInt("TIME_SET_FOR_IN_MINS", 0)
-        val timeSetAt = sharedPrefs.getInt("TIME_SET_AT_IN_MINS", 0)
-        val timePassed = sharedPrefs.getInt(getString(R.string.timePassedInMins), 0)
-        Log.i(TAG, "onResume: 129: timePassedInMins = $timePassed")
-        val timeDiff = (timeSetFor - timeSetAt) - timePassed
-        if (timeDiff > 0) {
-            Log.i(TAG, "onResume: 155: timeDiff is greater than 0")
-            val arr = timeFixToArray(
-                (timeDiff).toDouble() / 60
-            )
-            myCallback.updateText("${arr[0]} : ${arr[1]}")
-
-            myCallback.updateProgressBar(
-                timePassed,
-                timeSetFor - timeSetAt,
-                null
-            )
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                //cancel all notifications when app resumed
-                val notificationManager: NotificationManager =
-                    fragContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                notificationManager.cancelAll()
-            }
-            timePickerHandler?.postDelayed(timePickerRunnable!!, 60000/* 1min */)
-        } else {
-            Log.i(TAG, "onResume: 174: timeDiff is <= 0")
-            myCallback.updateText("00 : 00")
-
-            myCallback.updateProgressBar(
-                timePassed,
-                timeSetFor - timeSetAt,
-                100
-            )
+            Log.e(TAG, "onResume: 159: ${e.printStackTrace()} :\n${e.message}")
         }
         super.onResume()
     }
@@ -188,15 +162,23 @@ class HomeFragment(private val fragContext: Context) : Fragment(),
         super.onCreate(savedInstanceState)
         //onCreate for non-graphical initializations
 
-        sharedPrefs = activity!!.applicationContext.getSharedPreferences(
+        sharedPrefs = fragContext.getSharedPreferences(
             getString(R.string.sharedPrefsName),
             0
         )
-        br = MyReceiver()
-        timePassedInMins = sharedPrefs.getInt(getString(R.string.timePassedInMins), 0)
-        serviceIntent = Intent(fragContext, MyService::class.java)
 
-        //this might fail //todo check!!
+        timeObj = MyTimeObj(
+            sharedPrefs.getInt("TIME_SET_FOR_IN_MINS", 0),
+            sharedPrefs.getInt("TIME_SET_AT_IN_MINS", 0),
+            sharedPrefs.getInt(getString(R.string.timePassedInMins), 0)
+        )
+
+        serviceIntent =
+            Intent(requireActivity().applicationContext, MyForegroundService::class.java).also {
+                it.action = "START"
+            }
+
+        br = MyReceiver()
     }
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
@@ -215,7 +197,7 @@ class HomeFragment(private val fragContext: Context) : Fragment(),
                 overrideSetPercentage: Int?
             ) {
                 Log.i(TAG, "updateProgressBar: 132: Updating Progress Bar")
-                var progressPercentage: Float = if (overrideSetPercentage != null) {
+                val progressPercentage: Float = if (overrideSetPercentage != null) {
                     overrideSetPercentage.toFloat()
                 } else {
                     (timePassedInMinutes.toDouble() / timeDifferenceInMins.toDouble()).toFloat() * 100
@@ -226,8 +208,46 @@ class HomeFragment(private val fragContext: Context) : Fragment(),
                     progressBar.progress.toFloat(),
                     progressPercentage
                 )
-                animation.duration = 1000 // 1 second
+                animation.duration = 650 // 1 second
                 progressBar.startAnimation(animation)
+            }
+        }
+
+        timePickerRunnable = object : Runnable {
+            override fun run() {
+                val timeSetForInMins = timeObj.timeSetFor
+                val timeSetAtInMins = timeObj.timeSetAt
+                Log.i(TAG, "run()")
+                timeObj.oneMinutePassed()
+                Log.i(TAG, "run: 262: timePassedInMins = ${timeObj.timePassed}")
+                //add 1 to the "timePassedInMinutes" since timer inception
+                myCallback.updateProgressBar(
+                    timeObj.timePassed,
+                    timeSetForInMins - timeSetAtInMins,
+                    null
+                )
+                val timePassedArray =
+                    timeFixToArray(((timeSetForInMins - timeSetAtInMins) - timeObj.timePassed).toDouble() / 60)
+                //update text
+                myCallback.updateText("${timePassedArray[0]} : ${timePassedArray[1]}")
+
+                //                  // 100% guarantee that this always happens, even if
+                //                 // your update method throws an exception
+                if ((timeSetForInMins - timeSetAtInMins) - timeObj.timePassed == 0) {
+                    //here we are basically checking if the time difference between when we set the timer to go off and the time
+                    // we set the timer (17:09 - 17:03 = 6 mins timer) has passed
+                    // i.e. if timer should be completed by now
+                    Log.i(TAG, "run: 87: time is up!!")
+                    timeObj.timePassed = 0
+                    timePickerHandler.removeCallbacks(this)
+                    val intentFilter = IntentFilter()
+                    intentFilter.addAction("TimePickerSet")
+                    intentFilter.addAction("Service Stopped")
+
+                } else {
+                    //if timer has not ended after 1 min then set a handler/runnable post delayed for another 1 min. then check back
+                    timePickerHandler.postDelayed(this, 60000)
+                }
             }
         }
     }
@@ -254,86 +274,101 @@ class HomeFragment(private val fragContext: Context) : Fragment(),
             }
             return arr
         }
-
     }
 
-    inner class MyReceiver : BroadcastReceiver() {
+    private fun startMyService() {
+        fragContext.registerReceiver(br, IntentFilter("Service Stopped"))
+        Log.i(TAG, "startMyService: timePassed = ${timeObj.timePassed}")
+        serviceIntent.putExtra("TIME_OBJ", timeObj)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Log.i(TAG, "Starting the service in >=26 Mode")
+            startForegroundService(requireActivity().applicationContext, serviceIntent)
+            return
+        }
+        Log.i(TAG, "Starting the service in < 26 Mode")
+        fragContext.startService(serviceIntent)
+    }
+
+    inner class MyReceiver : BroadcastReceiver(), Serializable {
         override fun onReceive(context: Context?, intent: Intent?) {
+
+            val TAG2 = "MyReceiver"
 
             fragContext.unregisterReceiver(this) //unregister in-order to ensure that only received once
 
-            sharedPrefs.edit().putInt(getString(R.string.timePassedInMins), 0).apply()
-            timePassedInMins = sharedPrefs.getInt(getString(R.string.timePassedInMins), 0)
-            Log.i(TAG, "onReceive: 238: timePassedInMins = $timePassedInMins")
+            Log.i(
+                TAG2,
+                "onReceive: 233: Broadcast Received with action ${intent?.action}"
+            )
 
-            Log.i(TAG, "onReceive: 233: Broadcast Received with action ${intent?.action}")
+            if (intent != null) {
+                when (intent.action) {
+                    "TimePickerSet" -> {
+                        intent.also {
+                            timeObj.timeSetFor = it.getIntExtra("TIME_SET_FOR_IN_MINS", 0)
+                            timeObj.timeSetAt = it.getIntExtra("TIME_SET_AT_IN_MINS", 0)
+                            timeObj.timePassed = 0
+                        }
+                        val arr =
+                            timeFixToArray((timeObj.timeSetFor - timeObj.timeSetAt).toDouble() / 60)
+                        myCallback.updateText("${arr[0]} : ${arr[1]}")
+                        myCallback.updateProgressBar(0, 0, 0)
 
-            val timeSetForInMins = intent?.getIntExtra("TIME_SET_FOR_IN_MINS", 0)!!
-            val timeSetAtInMins = intent?.getIntExtra("TIME_SET_AT_IN_MINS", 0)!!
-
-            timePickerHandler =
-                Handler(Looper.getMainLooper()) //this should ensure there is ony one handler at a time
-            if (timePickerRunnable != null) timePickerHandler?.removeCallbacks(timePickerRunnable)
-
-            val arr = timeFixToArray((timeSetForInMins - timeSetAtInMins).toDouble() / 60)
-            myCallback.updateText("${arr[0]} : ${arr[1]}")
-            myCallback.updateProgressBar(0, 0, 0)
-
-            Toasty.info(
-                fragContext,
-                "New timer set for ${arr[0]} hour/s & ${arr[1]} mins",
-                Toast.LENGTH_SHORT,
-                true
-            ).show()
-
-            timePickerRunnable = object : Runnable {
-                override fun run() {
-                    Log.i(TAG, "run()")
-                    timePassedInMins += 1
-                    Log.i(TAG, "run: 262: timePassedInMins = $timePassedInMins")
-                    //add 1 to the "timePassedInMinutes" since timer inception
-                    myCallback.updateProgressBar(
-                        timePassedInMins,
-                        timeSetForInMins - timeSetAtInMins,
-                        null
-                    )
-                    val timePassedArray =
-                        timeFixToArray(((timeSetForInMins - timeSetAtInMins) - timePassedInMins).toDouble() / 60)
-                    //update text
-                    myCallback.updateText("${timePassedArray[0]} : ${timePassedArray[1]}")
-
-                    //                  // 100% guarantee that this always happens, even if
-                    //                 // your update method throws an exception
-                    if ((timeSetForInMins - timeSetAtInMins) - timePassedInMins == 0) {
-                        //here we are basically checking if the time difference between when we set the timer to go off and the time
-                        // we set the timer (17:09 - 17:03 = 6 mins timer) has passed
-                        // i.e. if timer should be completed by now
-                        Log.i(TAG, "run: 87: time is up!!")
-                        sharedPrefs.edit().putInt(getString(R.string.timePassedInMins), 0).apply()
-                        timePickerHandler?.removeCallbacks(this)
-                        fragContext.registerReceiver(this@MyReceiver, IntentFilter("TimePickerSet"))
-
-                    } else {
-                        //if timer has not ended after 1 min then set a handler/runnable post delayed for another 1 min. then check back
-                        timePickerHandler?.postDelayed(this, 60000)
+                        Toasty.info(
+                            fragContext,
+                            "New timer set for ${arr[0]} hour/s & ${arr[1]} mins",
+                            Toast.LENGTH_SHORT,
+                            true
+                        ).show()
+                        try {
+                            timePickerHandler.removeCallbacks(timePickerRunnable)
+                        } catch (e: Exception) {
+                            Log.e(TAG2, "onReceive: ${e.localizedMessage}")
+                        }
+                        timePickerHandler.postDelayed(timePickerRunnable, 60000)
                     }
+
+                    "Service Stopped" -> {
+                        timeObj = intent!!.getParcelableExtra("TIME_OBJ") as MyTimeObj
+
+                        val timeSetFor = timeObj.timeSetFor
+                        val timeSetAt = timeObj.timeSetAt
+                        val timePassed = timeObj.timePassed
+                        Log.i(TAG, "onResume: 129: timePassedInMins = $timePassed")
+                        if (timeObj.getTimeDifference() - timePassed > 0) {
+                            Log.i(TAG, "onResume: 155: timeDiff is greater than 0")
+                            val arr = timeFixToArray(
+                                (timeObj.getTimeDifference() - timePassed).toDouble() / 60
+                            )
+                            myCallback.updateText("${arr[0]} : ${arr[1]}")
+
+                            myCallback.updateProgressBar(
+                                timePassed,
+                                timeObj.getTimeDifference(),
+                                null
+                            )
+
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                //cancel all notifications when app resumed
+                                val notificationManager: NotificationManager =
+                                    fragContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                                notificationManager.cancelAll()
+                            }
+                            timePickerHandler.postDelayed(timePickerRunnable, 60000/* 1min */)
+                        } else {
+                            Log.i(TAG, "onResume: 174: timeDiff is <= 0")
+                            myCallback.updateText("00 : 00")
+
+                            myCallback.updateProgressBar(
+                                timePassed,
+                                timeObj.getTimeDifference(),
+                                100
+                            )
+                        }
+                    }
+
                 }
             }
-
-            /*if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                if (timePickerHandler != null) if (timePickerHandler!!.hasCallbacks(
-                        timePickerRunnable
-                    )
-                ) {
-                    Log.i(TAG, "onReceive: 274: Attempting to remove all callbacks from mHandler")
-                    timePickerHandler?.removeCallbacks(timePickerRunnable)
-                }
-            } else {
-                Log.e(TAG, "VERSION.SDK_INT < Q - could not tell if handler has callbacks")
-            }*/
-
-            timePickerHandler?.postDelayed(timePickerRunnable, 60000)
-
         }
     }
 }
