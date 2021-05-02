@@ -9,6 +9,7 @@
 
 
     <LinearLayout
+        android:id="@+id/linearLayout2"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:elevation="5dp"
@@ -24,12 +25,26 @@
             android:id="@+id/timeLeftTV"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_gravity="center"
             android:layout_weight="1"
             android:fontFamily="@font/markerfelt"
-            android:layout_gravity="center"
             android:text="@string/startTime"
             android:textColor="@android:color/white"
             android:textSize="22sp" />
+
+        <com.bhargavms.dotloader.DotLoader
+            android:id="@+id/dot_loader"
+            android:layout_width="wrap_content"
+            android:layout_height="16dp"
+            android:layout_gravity="center"
+            android:layout_marginTop="5dp"
+            android:elevation="8dp"
+            android:visibility="invisible"
+            android:foregroundGravity="center"
+            android:padding="1dp"
+            app:color_array="@array/dot_colors"
+            app:dot_radius="6dp"
+            app:number_of_dots="3" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -40,7 +55,7 @@
             android:gravity="center"
             android:text="@string/timeRemaining"
             android:textColor="@android:color/white"
-            android:textSize="14sp" />
+            android:textSize="12sp" />
 
     </LinearLayout>
 
@@ -74,7 +89,6 @@
         app:layout_constraintEnd_toEndOf="@+id/imageView"
         app:layout_constraintStart_toStartOf="@+id/imageView"
         app:layout_constraintTop_toTopOf="@+id/imageView" />
-
 
     <LinearLayout
         android:id="@+id/linearLayout"
@@ -142,7 +156,7 @@
         </TableRow>
 
         <TextView
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
             android:layout_marginTop="20dp"
