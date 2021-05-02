@@ -32,6 +32,19 @@
             android:textColor="@android:color/white"
             android:textSize="22sp" />
 
+        <com.bhargavms.dotloader.DotLoader
+            android:id="@+id/dot_loader"
+            android:layout_width="wrap_content"
+            android:layout_height="16dp"
+            android:layout_gravity="center"
+            android:layout_marginTop="5dp"
+            android:elevation="8dp"
+            android:visibility="invisible"
+            android:foregroundGravity="center"
+            android:padding="1dp"
+            app:color_array="@array/dot_colors"
+            app:dot_radius="6dp"
+            app:number_of_dots="3" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -42,28 +55,9 @@
             android:gravity="center"
             android:text="@string/timeRemaining"
             android:textColor="@android:color/white"
-            android:textSize="14sp" />
+            android:textSize="12sp" />
 
     </LinearLayout>
-
-    <com.bhargavms.dotloader.DotLoader
-        android:id="@+id/dot_loader"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
-        android:layout_marginTop="5dp"
-        android:layout_weight="1"
-        android:elevation="8dp"
-        android:padding="1dp"
-        android:visibility="invisible"
-        app:color_array="@array/dot_colors"
-        app:dot_radius="4dp"
-        app:layout_constraintBottom_toTopOf="@+id/linearLayout"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/linearLayout2"
-        app:layout_constraintVertical_bias="0.0"
-        app:number_of_dots="3" />
 
 
     <ImageView
@@ -162,7 +156,7 @@
         </TableRow>
 
         <TextView
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
             android:layout_marginTop="20dp"

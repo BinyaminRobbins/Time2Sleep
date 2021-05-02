@@ -107,20 +107,28 @@ class HomeFragment(private val fragContext: Context) : Fragment(),
                 val filter = IntentFilter()
                 filter.addAction("TimePickerSet")
 
+                changeDotsVisibility()
+
                 TimePicker(fragContext, MyReceiver(), filter).show(
                     fragmentManager!!,
                     null
                 )
                 fragContext.registerReceiver(br, filter)
 
-                // TODO: 13/02/2021 Create loading icon that shows that progress bar is running and time is being tracked
-                // probably 3 dot changing icons
             }
             R.id.resetTimerButton -> {
                 Toasty.info(fragContext, "Reset Timer", Toast.LENGTH_SHORT, true)
                     .show()
             }
             // TODO: 18/01/2021 Reset Timer
+        }
+    }
+
+    private fun changeDotsVisibility() {
+        if (dot_loader.visibility == View.VISIBLE) {
+            dot_loader.visibility = View.INVISIBLE
+        } else if (dot_loader.visibility == View.INVISIBLE) {
+            dot_loader.visibility = View.INVISIBLE
         }
     }
 
@@ -246,7 +254,7 @@ class HomeFragment(private val fragContext: Context) : Fragment(),
                     val intentFilter = IntentFilter()
                     intentFilter.addAction("TimePickerSet")
                     intentFilter.addAction("Service Stopped")
-                    dot_loader.visibility = View.INVISIBLE
+                    changeDotsVisibility()
                 } else {
                     //if timer has not ended after 1 min then set a handler/runnable post delayed for another 1 min. then check back
                     timePickerHandler.postDelayed(this, 60000)
@@ -330,7 +338,7 @@ class HomeFragment(private val fragContext: Context) : Fragment(),
                         }
                         timePickerHandler.postDelayed(timePickerRunnable, 60000)
 
-                        dot_loader.visibility = View.VISIBLE
+                        changeDotsVisibility()
                     }
 
                     "Service Stopped" -> {
