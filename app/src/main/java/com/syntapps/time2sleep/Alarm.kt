@@ -75,7 +75,7 @@ class Alarm : BroadcastReceiver() {
 
         val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             NotificationCompat.Builder(myContext, "T2S_ID")
-                .setSmallIcon(R.drawable.t2s_icon_notif)
+                .setSmallIcon(R.drawable.ic_stat_group_12)
                 .setColor(myContext.getColor(R.color.colorPrimaryDark))
                 .setContentTitle("Time2Sleep App Timer")
                 .setContentText("Your Sleep Timer is Up")
