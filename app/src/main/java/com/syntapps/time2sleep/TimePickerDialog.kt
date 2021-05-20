@@ -15,9 +15,7 @@ import java.util.*
 
 //This class represents the TimePicker Dialog created when the user selects the "New Timer" button
 class TimePicker(
-    private val myContext: Context,
-    private val br: BroadcastReceiver,
-    private val filter: IntentFilter
+    private val myContext: Context
 ) :
     DialogFragment(),
     TimePickerDialog.OnTimeSetListener {
@@ -40,11 +38,10 @@ class TimePicker(
             currentTimeInMinutes
         //currentTimeInMins gets set in the OnCreateDialog function
 
-        setAlarm(
+        MyAlarm(
             myContext,
-            cal.timeInMillis + (cal.get(Calendar.SECOND).toLong() / 60),
-            timeSetForInMins - timeSetAtInMins
-        )
+            cal.timeInMillis + (cal.get(Calendar.SECOND).toLong() / 60)
+        ).setAlarm()
 
         Log.i(TAG, "onTimeSet: timeSetForInMins: $timeSetForInMins")
         Log.i(TAG, "onTimeSet: timeSetAtInMins: $timeSetAtInMins")
@@ -70,35 +67,6 @@ class TimePicker(
             hour,
             minute,
             DateFormat.is24HourFormat(activity)
-        )
-    }
-
-    private fun setAlarm(
-        myContext: Context,
-        cTimeInMilis: Long,
-        timeSetDifference: Int
-    ) {
-        Log.i(TAG, "setAlarm: 67: Setting Alarm")
-        val alarmManager = myContext.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val i = Intent(myContext, Alarm::class.java).also {
-            it.flags = Intent.FLAG_INCLUDE_STOPPED_PACKAGES
-            it.action = "T2S_ALARM"
-            it.putExtra("timeSetDifference", timeSetDifference)
-        }
-        val receiver = ComponentName(myContext, Alarm::class.java)
-        val pm = myContext.packageManager
-
-        pm.setComponentEnabledSetting(
-            receiver,
-            PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
-            PackageManager.DONT_KILL_APP
-        )
-
-        val p = PendingIntent.getBroadcast(myContext, 1, i, 0)
-        alarmManager.cancel(p) // cancel all pending alarms and set a new one
-        alarmManager.setExact(
-            AlarmManager.RTC_WAKEUP,
-            cTimeInMilis + 60000, p
         )
     }
 }

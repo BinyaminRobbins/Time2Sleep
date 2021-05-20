@@ -1,26 +1,24 @@
 package com.syntapps.time2sleep
 
 import android.app.*
-import android.content.*
+import android.content.Context
+import android.content.Intent
 import android.graphics.Color
-import android.os.*
+import android.os.Build
+import android.os.Handler
+import android.os.IBinder
+import android.os.PowerManager
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NotificationCompat
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import java.io.Serializable
 
 
 class MyForegroundService : Service() {
 
-    private var wakeLock: PowerManager.WakeLock? = null
-    private var isServiceStarted: Boolean = false
-
     private val TAG = "MyService"
     private val handler = Handler()
     private var runnable: Runnable? = null
+    var ONE_MIN: Long = 60000
 
     private lateinit var timeObj: MyTimeObj
 
@@ -48,22 +46,18 @@ class MyForegroundService : Service() {
                 timeObj = intent.getParcelableExtra("TIME_OBJ") as MyTimeObj
                 Log.i(TAG, "onStartCommand: timePassed = ${timeObj.timePassed}")
                 runnable = object : Runnable {
-
                     override fun run() {
                         Log.i(TAG, "run: run()")
-                        Log.i(TAG, "run: timePassedInMins = ${timeObj.timePassed}")
                         timeObj.oneMinutePassed()
-                        Log.i(TAG, "run:timePassedInMins (after minute) = ${timeObj.timePassed}")
 
                         if ((timeObj.getTimeDifference() - timeObj.timePassed) == 0) {
                             Log.i(TAG, "run: 46: TIME UP!!")
                             handler.removeCallbacks(this)
                             stopMyService()
-                        } else handler.postDelayed(this, 60000)
+                        } else handler.postDelayed(this, ONE_MIN)
                     }
                 }
-
-                startMyService()
+                handler.postDelayed(runnable!!, ONE_MIN /*(every 1 min)*/)
             } else {
                 Log.i(TAG, "onStartCommand: non-recognized intent action : $action")
             }
@@ -73,53 +67,13 @@ class MyForegroundService : Service() {
         return START_STICKY
     }
 
-    private fun startMyService() {
-        if (isServiceStarted) return
-        Log.i(TAG, "startMyService: 79: Starting foreground task...")
-        isServiceStarted = true
-        // we need this lock so our service gets not affected by Doze Mode
-        wakeLock =
-            (getSystemService(Context.POWER_SERVICE) as PowerManager).run {
-                newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MyService::lock").apply {
-                    acquire()
-                }
-            }
-
-        // we're starting a loop in a coroutine
-        GlobalScope.launch(Dispatchers.IO) {
-            if (isServiceStarted) {
-                launch(Dispatchers.IO) {
-                    //run code
-                    Log.i(TAG, "startMyService: 99: Coroutine Launched")
-                    if (runnable != null) {
-                        handler.postDelayed(runnable!!, 60000 /*(every 1 min)*/)
-                    }
-                    isServiceStarted = true
-                }
-                //delay(1 * 60 * 1000 /*1 minute*/)
-            }
-            Log.i(TAG, "End of startMyService() loop")
-        }
-
-    }
-
     private fun stopMyService() {
         Log.i(TAG, "Stopping Foreground Service from stopMyService()")
+        stopForeground(true)
+        stopSelf()
         sendBroadcast(Intent("Service Stopped").also {
             it.putExtra("TIME_OBJ", timeObj)
         })
-        try {
-            wakeLock?.let {
-                if (it.isHeld) {
-                    it.release()
-                }
-            }
-            stopForeground(true)
-            stopSelf()
-        } catch (e: Exception) {
-            Log.i(TAG, "Service stopped without ever being started: ${e.message}")
-        }
-        isServiceStarted = false
     }
 
     private fun createNotification(): NotificationCompat.Builder {
@@ -146,9 +100,11 @@ class MyForegroundService : Service() {
             notificationManager.createNotificationChannel(channel)
         }
 
-        //this is to create clickable notification that leads to MainActivity
+       /* //this is to create clickable notification that leads to MainActivity
         // Create an Intent for the activity you want to start
-        val resultIntent = Intent(this, MainActivity::class.java)
+        val resultIntent = Intent(applicationContext, MainActivity::class.java).also {
+            it.putExtra("fromNotification", true)
+        }
         // Create the TaskStackBuilder
         val resultPendingIntent: PendingIntent? = TaskStackBuilder.create(this).run {
             // Add the intent, which inflates the back stack
@@ -156,16 +112,17 @@ class MyForegroundService : Service() {
             // Get the PendingIntent containing the entire back stack
             getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT)
         }
-
+*/
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             NotificationCompat.Builder(this, "T2S_ID")
-                .setSmallIcon(R.drawable.t2s_icon_notif)
+                .setSmallIcon(R.drawable.ic_stat_group_12)
                 .setColor(this.getColor(R.color.colorPrimaryDark))
-                .setContentTitle("Time2Sleep Service")
-                .setContentText("Time2Sleep is running")
+                .setContentTitle("Time2Sleep Timer")
+                .setContentText("Your Time2Sleep timer is running")
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setAutoCancel(true)
-                .setContentIntent(resultPendingIntent)
+                .setVibrate(longArrayOf(100, 200, 300, 400, 500, 400, 300, 200, 400))
+          //      .setContentIntent(resultPendingIntent)
         } else {
             TODO("VERSION.SDK_INT < M")
         }

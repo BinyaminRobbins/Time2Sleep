@@ -39,9 +39,9 @@
             android:layout_gravity="center"
             android:layout_marginTop="5dp"
             android:elevation="8dp"
-            android:visibility="invisible"
             android:foregroundGravity="center"
             android:padding="1dp"
+            android:visibility="invisible"
             app:color_array="@array/dot_colors"
             app:dot_radius="6dp"
             app:number_of_dots="3" />
@@ -117,17 +117,17 @@
             app:layout_constraintTop_toTopOf="parent">
 
             <Button
-                android:id="@+id/newTimerButton"
+                android:id="@+id/cancelTimerButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
+                android:layout_marginStart="15dp"
                 android:layout_marginEnd="5dp"
                 android:layout_weight="1"
                 android:background="@drawable/custom_buttons"
                 android:fontFamily="@font/markerfelt"
                 android:foregroundGravity="center"
                 android:gravity="center"
-                android:text="New Timer"
                 android:textAllCaps="false"
                 android:textSize="18sp"
                 app:layout_constraintBottom_toBottomOf="parent"
@@ -141,12 +141,44 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:layout_marginStart="5dp"
+                android:layout_marginEnd="15dp"
                 android:layout_weight="1"
                 android:background="@drawable/custom_buttons"
                 android:fontFamily="@font/markerfelt"
                 android:foregroundGravity="center"
                 android:gravity="center"
-                android:text="Reset Timer"
+                android:textAllCaps="false"
+                android:textSize="18sp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+        </TableRow>
+
+        <TableRow
+            android:id="@+id/topTableRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="5dp"
+            android:layout_marginEnd="5dp"
+            android:padding="5dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <Button
+                android:id="@+id/newTimerButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginStart="15dp"
+                android:layout_marginEnd="15dp"
+                android:layout_weight="1"
+                android:background="@drawable/custom_buttons"
+                android:fontFamily="@font/markerfelt"
+                android:foregroundGravity="center"
+                android:gravity="center"
                 android:textAllCaps="false"
                 android:textSize="18sp"
                 app:layout_constraintBottom_toBottomOf="parent"
@@ -257,13 +289,14 @@
         android:gravity="center"
         android:text="More"
         android:textColor="@android:color/white"
-        android:textSize="14sp"
+        android:textSize="16sp"
+        android:textStyle="italic"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintHorizontal_bias="0.9"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.0" />
+        app:layout_constraintVertical_bias="0.03" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>

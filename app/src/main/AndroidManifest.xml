@@ -29,7 +29,7 @@
             android:label="My Service"
             android:stopWithTask="false" />
         <receiver
-            android:name="com.syntapps.time2sleep.Alarm"
+            android:name=".Alarm"
             android:enabled="true" />
     </application>
 
